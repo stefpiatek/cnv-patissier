@@ -3,43 +3,94 @@ import subprocess
 import csv
 import os
 
+genome_fasta_path = "/var/reference_sequences/MiSeq/genome.fa"
+
+
+class BaseCNVNormalPanel:
+    def __init__(self, cohort, gene, start_time):
+        self.start_time = start_time
+        self.cohort = cohort
+        self.gene = gene
+        gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-lists/{gene}_samples.txt"
+
+        bams = SampleUtils.select_samples(gene_list, "normal-panel")
+        self.bam_mount = SampleUtils.get_mount_point(bams)
+
+        docker_bams = [
+            f"/mnt/bam-input/{bam.split(self.bam_mount )[-1]}" for bam in bams
+        ]
+
+        max_cpu = "30"
+        max_mem = "50"
+
+        self.settings = {
+            "bams": docker_bams,
+            "ref_fasta": f"/mnt/ref_genome/{genome_fasta_path.split('/')[-1]}",
+            "intervals": f"/mnt/input/{cohort}/bed/{gene}.bed",
+            "max_cpu": max_cpu,
+            "max_mem": max_mem,
+            "docker_image": None,
+        }
+
+    def base_output_dirs(self):
+        output_base = (
+            f"{cnv_pat_dir}/output/{self.cohort}/{self.start_time}/"
+            f"{self.run_type}/{self.gene}"
+        )
+        docker_output_base = output_base.replace(cnv_pat_dir, "/mnt")
+
+        return (output_base, docker_output_base)
+
+    def run_docker_subprocess(self, args):
+        """Run docker subprocess as non root user, mounting input and reference genome dir"""
+        ref_genome_dir = os.path.dirname(genome_fasta_path)
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                # "--user",
+                # "1000",
+                "-v",
+                f"{ref_genome_dir}:/mnt/ref_genome/:ro",
+                "-v",
+                f"{cnv_pat_dir}/input:/mnt/input/:ro",
+                "-v",
+                f"{self.bam_mount}:/mnt/bam-input/:ro",
+                "-v",
+                f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
+                "-v",
+                f"{cnv_pat_dir}/output/:/mnt/output/:rw",
+                self.settings["docker_image"],
+                *args,
+            ],
+            check=True,
+        )
+
+
 def get_cnv_patissier_dir():
     """Returns the base directory of the project from the scripts folder"""
     return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-cnv_pat_dir = get_cnv_patissier_dir()
 
-class SymlinkBams:
-    def __init__(self, cohort):
-        self.cohort = cohort
-        self.gene_lists = glob.glob(
-            f"{cnv_pat_dir}/input/{self.cohort}/sample-lists/*"
-        )
-
-    def symlink_gene_bams(self, gene_list, cnv_status):
+class SampleUtils:
+    @classmethod
+    def select_samples(cls, gene_list, cnv_status):
+        """returns list of sample paths for normal, normal-panel and postive samples"""
+        output_samples = []
         with open(gene_list) as handle:
             samples = csv.DictReader(handle, delimiter="\t")
             for sample in samples:
                 if sample["result_type"] == cnv_status:
-                    base_output_dir = (f"{cnv_pat_dir}/input/{self.cohort}/bam/"
-                                       f"{sample['target_gene']}")
-                    output_dir = f"{base_output_dir}/{cnv_status}"
-                    if not os.path.exists(output_dir):
-                        os.makedirs(output_dir)
-                    subprocess.run(
-                        ["ln", "-s", f"{sample['sample_name']}", output_dir], check=True
-                    )
-                    subprocess.run(
-                        ["ln", "-s", f"{sample['sample_name']}.bai", output_dir], check=True
-                    )
+                    output_samples.append(sample["sample_path"])
+        return output_samples
 
-    def main(self):
-        for gene_list in self.gene_lists:
-            self.symlink_gene_bams(gene_list, "normal")
-            self.symlink_gene_bams(gene_list, "normal-panel")
-            self.symlink_gene_bams(gene_list, "positive")
+    @classmethod
+    def get_mount_point(cls, paths):
+        """Returns common directory for a set of paths"""
+        common_prefix = os.path.commonprefix(paths)
+        end_of_path = common_prefix.rfind("/")
+        common_path = common_prefix[: end_of_path + 1]
+        return common_path
 
 
-if __name__ == "__main__":
-    symlinker = SymlinkBams("ICR")
-    symlinker.main()
+cnv_pat_dir = get_cnv_patissier_dir()
