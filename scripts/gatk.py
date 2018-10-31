@@ -1,7 +1,8 @@
 import glob
-import json
 import subprocess
 import os
+
+import toml
 
 from . import utils
 
@@ -30,7 +31,7 @@ class GATKBase(utils.BaseCNVTool):
 
     def main(self):
         self.run_workflow()
-        self.write_settings_json()
+        self.write_settings_toml()
 
     def run_gatk_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
@@ -60,10 +61,10 @@ class GATKCase(GATKBase):
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
         normal_path = (
-            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk-cohort/{self.gene}.json"
+            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk-cohort/{self.gene}.toml"
         )
         with open(normal_path) as handle:
-            normal_config = json.load(handle)
+            normal_config = toml.load(handle)
         self.normal_path_base = (
             f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk-cohort/{self.gene}"
         )
@@ -176,8 +177,8 @@ class GATKCase(GATKBase):
     def main(self):
         self.run_workflow()
 
-    def write_settings_json(self, sample_name):
-        """Write case json data for successful run"""
+    def write_settings_toml(self, sample_name):
+        """Write case toml data for successful run"""
         output_dir = (
             f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}"
         )
@@ -185,9 +186,9 @@ class GATKCase(GATKBase):
             os.makedirs(output_dir)
         except FileExistsError:
             print(f"*** run config directory exists for {self.run_type}/{self.gene} ***")
-        output_path = f"{output_dir}/{sample_name}.json"
+        output_path = f"{output_dir}/{sample_name}.toml"
         with open(output_path, "w") as out_file:
-            json.dump(self.settings, out_file)
+            toml.dump(self.settings, out_file)
 
 
 class GATKCohort(GATKBase):
@@ -331,13 +332,13 @@ class GATKCohort(GATKBase):
                 ]
             )
 
-    def write_settings_json(self):
-        """Write case json data for successful run"""
+    def write_settings_toml(self):
+        """Write case toml data for successful run"""
         output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/"
         try:
             os.makedirs(output_dir)
         except FileExistsError:
             print(f"*** run config directory exists for {self.cohort}/{self.run_type} ***")
-        output_path = f"{output_dir}/{self.gene}.json"
+        output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
-            json.dump(self.settings, out_file)
+            toml.dump(self.settings, out_file)
