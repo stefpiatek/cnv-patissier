@@ -1,3 +1,14 @@
+# Rroject specific
+.*
+!.gitignore
+!.gitkeep
+input/*
+!input/.gitkeep
+output/*
+!output.gitkeep
+successful-run-settings/
+!successful-run-settings/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

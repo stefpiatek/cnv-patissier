@@ -15,23 +15,22 @@ https://gatkforums.broadinstitute.org/gatk/discussion/comment/47431/
 """
 
 
-class GATKCohort(utils.BaseCNVNormalPanel):
-    def __init__(self, cohort, gene, start_time):
-        super().__init__(cohort, gene, start_time)
-        self.run_type = "gatk-cohort"
-        self.output_base, self.docker_output_base = self.base_output_dirs()
+class GATKBase(utils.BaseCNVTool):
+    def __init__(self, cohort, gene, start_time, normal_panel):
+        super().__init__(cohort, gene, start_time, normal_panel)
 
         self.settings = {
             **self.settings,
-            "num_intervals_per_scatter": "10",  # WES 5000 so for single gene, 10?
+            "num_intervals_per_scatter": "10",  # currently not used
             "padding": "50",
             "ref_copy_number_autosomal_contigs": "2",
-            "contig-ploidy-priors": (
-                f"/mnt/cnv-caller-resources/gatk/contig-ploidy-priors.tsv"
-            ),
+            "contig-ploidy-priors": f"/mnt/cnv-caller-resources/gatk/contig-ploidy-priors.tsv",
             "docker_image": "broadinstitute/gatk:4.0.11.0",
-            "start_time": start_time,
         }
+
+    def main(self):
+        self.run_workflow()
+        self.write_settings_json()
 
     def run_gatk_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
@@ -52,6 +51,150 @@ class GATKCohort(utils.BaseCNVNormalPanel):
             ]
         )
         print(f"*** Completed  GATK: {args[0]} {args[-1]} ***")
+
+
+class GATKCase(GATKBase):
+    def __init__(self, cohort, gene, start_time):
+        super().__init__(cohort, gene, start_time, normal_panel=False)
+        self.run_type = "gatk-case"
+        self.output_base, self.docker_output_base = self.base_output_dirs()
+
+        normal_path = (
+            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk-cohort/{self.gene}.json"
+        )
+        with open(normal_path) as handle:
+            normal_config = json.load(handle)
+        self.normal_path_base = (
+            f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk-cohort/{self.gene}"
+        )
+
+        self.settings = {
+            **self.settings,
+            "normal_panel_start_time": normal_config["start_time"],
+            "pre_process_interval": (
+                f"{self.normal_path_base}/PreprocessIntervals/intervals.interval_list"
+            ),
+            "contig_ploidy_model": (
+                f"{self.normal_path_base}/DetermineGermlineContigPloidy/normal-cohort-model"
+            ),
+            "gcnv_model": (f"{self.normal_path_base}/GermlineCNVCaller/normal-cohort-run-model"),
+        }
+
+    def run_workflow(self):
+
+        collect_read_counts = []
+        for bam in self.settings["bams"]:
+            sample_name = bam.replace(".bam", "").replace(".sorted", "").split("/")[-1]
+            hdf5_name = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hdf5"
+            if hdf5_name.endswith("17396.hdf5"):
+                continue
+            collect_read_counts.append(hdf5_name)
+            self.run_gatk_command(
+                [
+                    "CollectReadCounts",
+                    "-I",
+                    bam,
+                    "-L",
+                    self.settings["pre_process_interval"],
+                    "--interval-merging-rule",
+                    "OVERLAPPING_ONLY",
+                    "-O",
+                    hdf5_name,
+                ]
+            )
+
+        determine_germline_ploidy_dir = f"{self.docker_output_base}/DetermineGermlineContigPloidy"
+
+        input_flags = []
+        for sample in collect_read_counts:
+            input_flags.append("--input")
+            input_flags.append(sample)
+
+        self.run_gatk_command(
+            [
+                "DetermineGermlineContigPloidy",
+                *input_flags,
+                "--model",
+                self.settings["contig_ploidy_model"],
+                "--output-prefix",
+                "case",
+                "--output",
+                determine_germline_ploidy_dir,
+            ]
+        )
+
+        germline_cnv_caller_dir = f"{self.docker_output_base}/GermlineCNVCaller"
+        self.run_gatk_command(
+            [
+                "GermlineCNVCaller",
+                "--run-mode",
+                "CASE",
+                "--contig-ploidy-calls",
+                f"{determine_germline_ploidy_dir}/case-calls",
+                "--model",
+                self.settings["gcnv_model"],
+                *input_flags,
+                "--output-prefix",
+                "case-run",
+                "--output",
+                germline_cnv_caller_dir,
+            ]
+        )
+
+        post_germline_cnv_caller_dir = f"{self.docker_output_base}/PostprocessGermlineCNVCalls"
+
+        for sample in glob.glob(f"{self.output_base}/GermlineCNVCaller/case-run-calls/SAMPLE_*"):
+            sample_index = sample.split("_")[-1]
+            with open(f"{sample}/sample_name.txt") as handle:
+                sample_name = handle.readline().strip()
+            self.run_gatk_command(
+                [
+                    "PostprocessGermlineCNVCalls",
+                    "--calls-shard-path",
+                    f"{germline_cnv_caller_dir}/case-run-calls",
+                    "--model-shard-path",
+                    f"{self.settings['gcnv_model']}",
+                    "--contig-ploidy-calls",
+                    f"{determine_germline_ploidy_dir}/case-calls",
+                    "--sample-index",
+                    sample_index,
+                    "--autosomal-ref-copy-number",
+                    self.settings["ref_copy_number_autosomal_contigs"],
+                    "--allosomal-contig",
+                    f"{self.settings['chromosome_prefix']}X",
+                    "--allosomal-contig",
+                    f"{self.settings['chromosome_prefix']}Y",
+                    "--sequence-dictionary",
+                    self.settings["ref_fasta"].replace(".fa", ".dict"),
+                    "--output-genotyped-intervals",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_intervals.vcf",
+                    "--output-genotyped-segments",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_segments.vcf",
+                ]
+            )
+
+    def main(self):
+        self.run_workflow()
+
+    def write_settings_json(self, sample_name):
+        """Write case json data for successful run"""
+        output_dir = (
+            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}"
+        )
+        try:
+            os.makedirs(output_dir)
+        except FileExistsError:
+            print(f"*** run config directory exists for {self.run_type}/{self.gene} ***")
+        output_path = f"{output_dir}/{sample_name}.json"
+        with open(output_path, "w") as out_file:
+            json.dump(self.settings, out_file)
+
+
+class GATKCohort(GATKBase):
+    def __init__(self, cohort, gene, start_time):
+        super().__init__(cohort, gene, start_time, normal_panel=True)
+        self.run_type = "gatk-cohort"
+        self.output_base, self.docker_output_base = self.base_output_dirs()
 
     def run_workflow(self):
         pre_process_interval_out = (
@@ -79,9 +222,7 @@ class GATKCohort(utils.BaseCNVNormalPanel):
         for bam in self.settings["bams"]:
             hdf5_name = bam.split("/")[-1].replace(".bam", ".hdf5")
             collect_read_count_out = (
-                pre_process_interval_out.replace(
-                    "PreprocessIntervals/", "CollectReadCounts/"
-                )
+                pre_process_interval_out.replace("PreprocessIntervals/", "CollectReadCounts/")
                 .replace("intervals.interval_list", hdf5_name)
                 .replace(".sorted", "")
             )
@@ -122,9 +263,7 @@ class GATKCohort(utils.BaseCNVNormalPanel):
             input_flags.append("--input")
             input_flags.append(sample)
 
-        determine_germline_ploidy_dir = (
-            f"{self.docker_output_base}/DetermineGermlineContigPloidy"
-        )
+        determine_germline_ploidy_dir = f"{self.docker_output_base}/DetermineGermlineContigPloidy"
         self.run_gatk_command(
             [
                 "DetermineGermlineContigPloidy",
@@ -158,14 +297,14 @@ class GATKCohort(utils.BaseCNVNormalPanel):
             ]
         )
 
-        post_germline_cnv_caller_dir = (
-            f"{self.docker_output_base}/PostprocessGermlineCNVCalls"
-        )
+        post_germline_cnv_caller_dir = f"{self.docker_output_base}/PostprocessGermlineCNVCalls"
 
         for sample in glob.glob(
             f"{self.output_base}/GermlineCNVCaller/normal-cohort-run-calls/SAMPLE_*"
         ):
             sample_index = sample.split("_")[-1]
+            with open(f"{sample}/sample_name.txt") as handle:
+                sample_name = handle.readline().strip()
             self.run_gatk_command(
                 [
                     "PostprocessGermlineCNVCalls",
@@ -180,133 +319,25 @@ class GATKCohort(utils.BaseCNVNormalPanel):
                     "--autosomal-ref-copy-number",
                     self.settings["ref_copy_number_autosomal_contigs"],
                     "--allosomal-contig",
-                    "chrX",
+                    f"{self.settings['chromosome_prefix']}X",
                     "--allosomal-contig",
-                    "chrY",
+                    f"{self.settings['chromosome_prefix']}Y",
                     "--sequence-dictionary",
                     self.settings["ref_fasta"].replace(".fa", ".dict"),
                     "--output-genotyped-intervals",
-                    f"{post_germline_cnv_caller_dir}/sample_{sample_index}_genotyped_intervals.vcf",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_intervals.vcf",
                     "--output-genotyped-segments",
-                    f"{post_germline_cnv_caller_dir}/sample_{sample_index}_genotyped_segments.vcf",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_segments.vcf",
                 ]
             )
 
-    def create_json(self):
+    def write_settings_json(self):
         """Write case json data for successful run"""
-
-        output_path = f"{cnv_pat_dir}/run-config-files/gatk-cohort-{self.gene}.json"
+        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/"
+        try:
+            os.makedirs(output_dir)
+        except FileExistsError:
+            print(f"*** run config directory exists for {self.cohort}/{self.run_type} ***")
+        output_path = f"{output_dir}/{self.gene}.json"
         with open(output_path, "w") as out_file:
             json.dump(self.settings, out_file)
-
-
-class GATKCase:
-    def __init__(self, cohort, gene, start_time, sample_bam):
-        super(cohort, gene, start_time).__init__()
-        # config
-        max_cpu = 30
-        max_mem = 16
-        bam_dir = "/home/chris/stef/icr-mlpa/aligned"
-        bed_file = "/home/chris/stef/bed-files/icr-filtered.bed"
-        genome_fasta_path = "/var/reference_sequences/MiSeq/genome.fa"
-        self.cromwell_jar_path = "/home/chris/stef/cromwell-32.jar"
-        self.cohort_wdl_path = (
-            "/home/chris/stef/cnv-patissier/workflows/cnv_germline_case_workflow.wdl"
-        )
-
-        # cohort job
-        cromwell_dir = "/home/chris/stef/cromwell-executions"
-        cohort_job_id = "7d5650f7-ed5d-4367-bbaf-cab25b8c1fca"
-        model_prefix = "ICR"
-        self.sample_name = sample_bam.split("/")[-1].replace(".bam", "")
-        self.case_json_data = {
-            "CNVGermlineCaseWorkflow.bam": f"{sample_bam}",
-            "CNVGermlineCaseWorkflow.bam_idx": f"{sample_bam}.bai",
-            "CNVGermlineCaseWorkflow.ref_fasta": genome_fasta_path,
-            "CNVGermlineCaseWorkflow.ref_fasta_fai": f"{genome_fasta_path}.fai",
-            "CNVGermlineCaseWorkflow.ref_fasta_dict": genome_fasta_path.replace(
-                ".fa", ".dict"
-            ),
-            "CNVGermlineCaseWorkflow.intervals": bed_file,
-            "CNVGermlineCaseWorkflow.contig_ploidy_model_tar": (
-                f"{cromwell_dir}/CNVGermlineCohortWorkflow/{cohort_job_id}/"
-                f"call-DetermineGermlineContigPloidyCohortMode/execution/{model_prefix}-contig-ploidy-model.tar.gz"
-            ),
-            "CNVGermlineCaseWorkflow.gcnv_model_tars": glob.glob(
-                f"{cromwell_dir}/CNVGermlineCohortWorkflow/{cohort_job_id}/"
-                f"call-GermlineCNVCallerCohortMode/shard-*/execution/{model_prefix}-model*.tar.gz"
-            ),
-            "CNVGermlineCaseWorkflow.num_intervals_per_scatter": 5000,
-            "CNVGermlineCaseWorkflow.padding": 50,
-            "CNVGermlineCaseWorkflow.ref_copy_number_autosomal_contigs": 2,
-            "CNVGermlineCaseWorkflow.cpu_for_determine_germline_contig_ploidy": max_cpu,
-            "CNVGermlineCaseWorkflow.CollectCounts.cpu": max_cpu,
-            "CNVGermlineCaseWorkflow.PreprocessIntervals.cpu": max_cpu,
-            "CNVGermlineCaseWorkflow.cpu_for_germline_cnv_caller": max_cpu,
-            "CNVGermlineCaseWorkflow.mem_gb_for_germline_cnv_caller": max_mem,
-            "CNVGermlineCaseWorkflow.PreprocessIntervals.mem_gb": max_mem,
-            "CNVGermlineCaseWorkflow.ScatterIntervals.mem_gb": max_mem,
-            "CNVGermlineCaseWorkflow.PostprocessGermlineCNVCalls.mem_gb": max_mem,
-            "CNVGermlineCaseWorkflow.gatk_docker": "broadinstitute/gatk:4.0.7.0",
-        }
-
-    def remove_successful_run(self):
-        """Remove cromwell execution and docker container"""
-        pass
-
-    def run_gcnv(self, json_path):
-        """Run GATK gCNV CNVGermlineCaseWorkflow"""
-        print(f"Running GATK gCNV for {self.sample_name}")
-        gcnv = subprocess.run(
-            [
-                "java",
-                f"-Xmx{self.max_mem}g" "-jar",
-                self.cromwell_jar_path,
-                "run",
-                self.cohort_wdl_path,
-                "-i",
-                json_path,
-            ],
-            stdout=subprocess.PIPE,
-            universal_newlines=True,
-            check=True,
-        )
-
-        gatk_out_lines = [
-            line.strip().rstrip(",")
-            for line in gcnv.stdout.splitlines()
-            if line.strip().startswith(
-                ('"id"', '"CNVGermlineCaseWorkflow.genotyped_segments_vcf"')
-            )
-        ]
-        gatk_run_info = {}
-        for line in gatk_out_lines:
-            line_dict = "{" + line + "}"
-            gatk_run_info.update(eval(line_dict))
-        return gatk_run_info
-
-    def save_cnv_calls(self, run_info):
-        """Write CNV calls to database of results"""
-        pass
-
-    def main(self):
-        """Create json, run gCNV and clean up if successful"""
-        json_path = self.write_case_json()
-        gatk_run_info = self.run_gcnv(json_path)
-        gatk_run_info = {
-            "CNVGermlineCaseWorkflow.genotyped_segments_vcf": "/home/chris/stef/cnv-patissier/cromwell-executions/CNVGermlineCaseWorkflow/63a2f7e5-44bc-44c0-b23f-a8a76cdc6c02/call-PostprocessGermlineCNVCalls/execution/genotyped-segments-17296.sorted.vcf.gz",
-            "id": "63a2f7e5-44bc-44c0-b23f-a8a76cdc6c02",
-        }
-
-    def write_case_json(self):
-        """Write case json data and returns the path"""
-        output_path = f"run-config-files/{self.sample_name}-gCNV.json"
-        with open(output_path, "w") as out_file:
-            json.dump(self.case_json_data, out_file)
-        return output_path
-
-
-if __name__ == "__main__":
-    for bam in glob.glob("/home/chris/stef/icr-mlpa/aligned/*.bam"):
-        case_runner = GATKCase(bam)
-        case_runner.main()

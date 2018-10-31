@@ -6,19 +6,18 @@ import os
 genome_fasta_path = "/var/reference_sequences/MiSeq/genome.fa"
 
 
-class BaseCNVNormalPanel:
-    def __init__(self, cohort, gene, start_time):
+class BaseCNVTool:
+    def __init__(self, cohort, gene, start_time, normal_panel=True):
         self.start_time = start_time
         self.cohort = cohort
         self.gene = gene
         gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-lists/{gene}_samples.txt"
 
-        bams = SampleUtils.select_samples(gene_list, "normal-panel")
+        sample_ids, bams = SampleUtils.select_samples(gene_list, normal_panel=normal_panel)
+
         self.bam_mount = SampleUtils.get_mount_point(bams)
 
-        docker_bams = [
-            f"/mnt/bam-input/{bam.split(self.bam_mount )[-1]}" for bam in bams
-        ]
+        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
 
         max_cpu = "30"
         max_mem = "50"
@@ -30,12 +29,16 @@ class BaseCNVNormalPanel:
             "max_cpu": max_cpu,
             "max_mem": max_mem,
             "docker_image": None,
+            "chromosome_prefix": "chr",
+            "cohort": self.cohort,
+            "gene": self.gene,
+            "start_time": start_time,
         }
 
     def base_output_dirs(self):
+        """Returns base directory for output: (system_base, docker_base)"""
         output_base = (
-            f"{cnv_pat_dir}/output/{self.cohort}/{self.start_time}/"
-            f"{self.run_type}/{self.gene}"
+            f"{cnv_pat_dir}/output/{self.cohort}/{self.start_time}/" f"{self.run_type}/{self.gene}"
         )
         docker_output_base = output_base.replace(cnv_pat_dir, "/mnt")
 
@@ -66,6 +69,28 @@ class BaseCNVNormalPanel:
             check=True,
         )
 
+    def parse_vcf_4_2(self, vcf_path):
+        """Parses VCF v4.2, if positive cnv, returns dict of information"""
+        cnvs = []
+        with open(vcf_path) as handle:
+            for line in vcf_path:
+                if line.startswith("#"):
+                    continue
+                chrom, pos, var_id, ref, alt, qual, var_filter, info, var_format, data = (
+                    line.split()
+                )
+
+                call_data = {
+                    key: value for (key, value) in zip(var_format.split(":"), data.split(":"))
+                }
+                if call_data["CN"] != "0":
+                    call_data["chrom"] = chrom
+                    call_data["id"] = var_id
+                    call_data["start"] = pos
+                    call_data["end"] = info.replace("END=", "")
+
+                    cnvs.append(call_data)
+
 
 def get_cnv_patissier_dir():
     """Returns the base directory of the project from the scripts folder"""
@@ -74,22 +99,35 @@ def get_cnv_patissier_dir():
 
 class SampleUtils:
     @classmethod
-    def select_samples(cls, gene_list, cnv_status):
-        """returns list of sample paths for normal, normal-panel and postive samples"""
-        output_samples = []
+    def select_samples(cls, gene_list, normal_panel):
+        """returns (sample_ids, sample_paths) from a gene's sample sheet"""
+        if normal_panel:
+            cnv_statuses = ["normal-panel"]
+        else:
+            cnv_statuses = ["normal", "positive"]
+        output_ids = []
+        output_paths = []
         with open(gene_list) as handle:
             samples = csv.DictReader(handle, delimiter="\t")
             for sample in samples:
-                if sample["result_type"] == cnv_status:
-                    output_samples.append(sample["sample_path"])
-        return output_samples
+                for cnv_status in cnv_statuses:
+                    if sample["result_type"] == cnv_status:
+                        output_ids.append(sample["sample_id"])
+                        output_paths.append(sample["sample_path"])
+        assert len(set(output_ids)) == len(output_ids), "sample sheet sample_ids must be unique"
+        assert len(set(output_paths)) == len(
+            output_paths
+        ), "sample sheet sample_paths must be unique"
+        return output_ids, output_paths
 
     @classmethod
     def get_mount_point(cls, paths):
-        """Returns common directory for a set of paths"""
-        common_prefix = os.path.commonprefix(paths)
+        """Returns common root path for a list of paths"""
+        abs_paths = [os.path.abspath(path) for path in paths]
+        common_prefix = os.path.commonprefix(abs_paths)
         end_of_path = common_prefix.rfind("/")
-        common_path = common_prefix[: end_of_path + 1]
+        common_path = common_prefix[:end_of_path]
+        assert common_path, "all bams must be on the same drive/mount point"
         return common_path
 
 
