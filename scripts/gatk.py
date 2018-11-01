@@ -1,22 +1,21 @@
+"""
+Defaults used from suggested post by Sheila (gatk staff) on 10th April 2018
+with alterations for targetted sequencing: padding 50bp and no interval splitting
+https://gatkforums.broadinstitute.org/gatk/discussion/comment/47431/
+"""
+
 import glob
 import subprocess
 import os
 
 import toml
 
-from . import utils
+from . import utils, generic
 
 cnv_pat_dir = utils.get_cnv_patissier_dir()
-genome_fasta_path = "/var/reference_sequences/MiSeq/genome.fa"
-
-"""
-Defaults used from suggested post bu Sheila (gatk staff) on 10th April 2018
-with alterations for targetted sequencing
-https://gatkforums.broadinstitute.org/gatk/discussion/comment/47431/
-"""
 
 
-class GATKBase(utils.BaseCNVTool):
+class GATKBase(generic.BaseCNVTool):
     def __init__(self, cohort, gene, start_time, normal_panel):
         super().__init__(cohort, gene, start_time, normal_panel)
 
