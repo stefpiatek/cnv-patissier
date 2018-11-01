@@ -70,15 +70,16 @@ class BaseCNVTool:
             check=True,
         )
 
-    def parse_vcf_4_2(self, vcf_path):
+    @staticmethod
+    def parse_vcf_4_2(vcf_path):
         """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
         cnvs = []
         output_path = vcf_path.split("output/")[-1]
-        cnv_caller, gene, *args = output_path.split("/")
+        cohort, time_start, cnv_caller, gene, *args = output_path.split("/")
         sample_id = args[-1].replace(".vcf", "").replace("_segments", "").replace("_intervals", "")
-
+        print(vcf_path)
         with open(vcf_path) as handle:
-            for line in vcf_path:
+            for line in handle:
                 if line.startswith("#"):
                     continue
 
@@ -86,19 +87,20 @@ class BaseCNVTool:
                 row = {field: data for (field, data) in zip(fields, line.split())}
 
                 call_data = {key: value for (key, value) in zip(row["format"].split(":"), row["data"].split(":"))}
-                if call_data["CN"] != "0":
+                if call_data["GT"] != "0":
                     row["start"] = row.pop("pos")
                     if call_data["GT"] == "1":
-                        alt = "DEL"
+                        row["alt"] = "DEL"
                     elif call_data["GT"] == "2":
-                        alt = "DUP"
+                        row["alt"] = "DUP"
                     cnv = {
                         **row,
-                        "alt": alt,
                         "end": row["info"].replace("END=", ""),
                         "cnv_caller": cnv_caller,
                         "gene": gene,
                         "sample_id": sample_id,
+                        "cohort": cohort,
                     }
 
                     cnvs.append(cnv)
+        return cnvs

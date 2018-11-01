@@ -173,7 +173,6 @@ class GATKCase(GATKBase):
             self.write_settings_toml(sample_name)
         # read vcfs into database
 
-
     def write_settings_toml(self, sample_name):
         """Write case toml data for successful run"""
         output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}"

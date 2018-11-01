@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Segment most-likely copy-number call">
+##FORMAT=<ID=GT,Number=1,Type=Integer,Description="Segment genotype">
+##FORMAT=<ID=NP,Number=1,Type=Integer,Description="Number of points (i.e. targets or bins) in the segment">
+##FORMAT=<ID=QA,Number=1,Type=Integer,Description="Complementary Phred-scaled probability that all points (i.e. targets or bins) in the segment agree with the segment copy-number call">
+##FORMAT=<ID=QS,Number=1,Type=Integer,Description="Complementary Phred-scaled probability that at least one point (i.e. target or bin) in the segment agrees with the segment copy-number call">
+##FORMAT=<ID=QSE,Number=1,Type=Integer,Description="Complementary Phred-scaled probability that the segment end position is a genuine copy-number changepoint">
+##FORMAT=<ID=QSS,Number=1,Type=Integer,Description="Complementary Phred-scaled probability that the segment start position is a genuine copy-number changepoint">
+##GATKCommandLine=<ID=PostprocessGermlineCNVCalls,CommandLine="removed">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End coordinate of the variant">
+##source=PostprocessGermlineCNVCalls
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	17340
+chr17	41197645	CNV_chr17_41197645_41249357	N	<DEL>,<DUP>	.	.	END=41249357	GT:CN:NP:QA:QS:QSE:QSS	0:2:16:142:3077:118:142
+chr17	41267693	CNV_chr17_41267693_41277449	N	<DEL>,<DUP>	.	.	END=41277449	GT:CN:NP:QA:QS:QSE:QSS	0:2:3:67:233:160:67
