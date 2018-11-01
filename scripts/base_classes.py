@@ -13,7 +13,7 @@ class BaseCNVTool:
         self.start_time = start_time
         self.cohort = cohort
         self.gene = gene
-        gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-lists/{gene}_samples.txt"
+        gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
 
         sample_ids, bams = utils.SampleUtils.select_samples(gene_list, normal_panel=normal_panel)
 
@@ -53,6 +53,7 @@ class BaseCNVTool:
                 "run",
                 # "--user",
                 # "1000",
+                "--rm",
                 "-v",
                 f"{ref_genome_dir}:/mnt/ref_genome/:ro",
                 "-v",
@@ -87,8 +88,13 @@ class BaseCNVTool:
                 call_data = {key: value for (key, value) in zip(row["format"].split(":"), row["data"].split(":"))}
                 if call_data["CN"] != "0":
                     row["start"] = row.pop("pos")
+                    if call_data["GT"] == "1":
+                        alt = "DEL"
+                    elif call_data["GT"] == "2":
+                        alt = "DUP"
                     cnv = {
                         **row,
+                        "alt": alt,
                         "end": row["info"].replace("END=", ""),
                         "cnv_caller": cnv_caller,
                         "gene": gene,

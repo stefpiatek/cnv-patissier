@@ -10,12 +10,12 @@ import os
 
 import toml
 
-from . import utils, generic
+from . import utils, base_classes
 
 cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
-class GATKBase(generic.BaseCNVTool):
+class GATKBase(base_classes.BaseCNVTool):
     def __init__(self, cohort, gene, start_time, normal_panel):
         super().__init__(cohort, gene, start_time, normal_panel)
 
@@ -78,8 +78,6 @@ class GATKCase(GATKBase):
         for bam in self.settings["bams"]:
             sample_name = bam.replace(".bam", "").replace(".sorted", "").split("/")[-1]
             hdf5_name = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hdf5"
-            if hdf5_name.endswith("17396.hdf5"):
-                continue
             collect_read_counts.append(hdf5_name)
             self.run_gatk_command(
                 [
@@ -135,10 +133,13 @@ class GATKCase(GATKBase):
 
         post_germline_cnv_caller_dir = f"{self.docker_output_base}/PostprocessGermlineCNVCalls"
 
+        sample_names = []
+
         for sample in glob.glob(f"{self.output_base}/GermlineCNVCaller/case-run-calls/SAMPLE_*"):
             sample_index = sample.split("_")[-1]
             with open(f"{sample}/sample_name.txt") as handle:
                 sample_name = handle.readline().strip()
+                sample_names.append(sample)
             self.run_gatk_command(
                 [
                     "PostprocessGermlineCNVCalls",
@@ -164,9 +165,14 @@ class GATKCase(GATKBase):
                     f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
+        return sample_names
 
     def main(self):
-        self.run_workflow()
+        sample_names = self.run_workflow()
+        for sample_name in sample_names:
+            self.write_settings_toml(sample_name)
+        # read vcfs into database
+
 
     def write_settings_toml(self, sample_name):
         """Write case toml data for successful run"""
