@@ -35,7 +35,6 @@ class SampleUtils:
         common_prefix = os.path.commonprefix(abs_paths)
         end_of_path = common_prefix.rfind("/")
         common_path = common_prefix[: end_of_path + 1]
-        print(common_path)
         assert common_path != "/", "all bams must be on the same drive/mount point"
         return common_path
 

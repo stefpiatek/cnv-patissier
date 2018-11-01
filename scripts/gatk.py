@@ -171,7 +171,7 @@ class GATKCase(GATKBase):
         sample_names = self.run_workflow()
         for sample_name in sample_names:
             self.write_settings_toml(sample_name)
-        # read vcfs into database
+        # TODO: read vcfs into database
 
     def write_settings_toml(self, sample_name):
         """Write case toml data for successful run"""
@@ -179,7 +179,7 @@ class GATKCase(GATKBase):
         try:
             os.makedirs(output_dir)
         except FileExistsError:
-            print(f"*** run config directory exists for {self.run_type}/{self.gene} ***")
+            pass
         output_path = f"{output_dir}/{sample_name}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)
