@@ -9,7 +9,7 @@ def get_cnv_patissier_dir():
 
 class SampleUtils:
     @classmethod
-    def select_samples(cls, gene_list, normal_panel):
+    def select_samples(cls, sample_sheet, normal_panel):
         """returns (sample_ids, sample_paths) from a gene's sample sheet"""
         if normal_panel:
             cnv_statuses = ["normal-panel"]
@@ -17,7 +17,7 @@ class SampleUtils:
             cnv_statuses = ["normal", "positive"]
         output_ids = []
         output_paths = []
-        with open(gene_list) as handle:
+        with open(sample_sheet) as handle:
             samples = csv.DictReader(handle, delimiter="\t")
             for sample in samples:
                 for cnv_status in cnv_statuses:
@@ -35,7 +35,8 @@ class SampleUtils:
         common_prefix = os.path.commonprefix(abs_paths)
         end_of_path = common_prefix.rfind("/")
         common_path = common_prefix[: end_of_path + 1]
-        assert common_path, "all bams must be on the same drive/mount point"
+        print(common_path)
+        assert common_path != "/", "all bams must be on the same drive/mount point"
         return common_path
 
 

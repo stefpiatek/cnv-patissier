@@ -2,13 +2,15 @@
 .*
 !.gitignore
 !.gitkeep
+!.coveragerc
 input/*
 !input/.gitkeep
 output/*
 !output.gitkeep
 successful-run-settings/
 !successful-run-settings/.gitkeep
-
+tests/coverage_html/
+! tests/coverage_html/.gitkeep
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

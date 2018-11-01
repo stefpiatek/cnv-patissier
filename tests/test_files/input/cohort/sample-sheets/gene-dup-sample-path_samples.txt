@@ -1,0 +1,7 @@
+sample_id	sample_path	result_type	target_gene	chromosome	start	end	genome_build
+17327	/path/17328.sorted.bam	normal-panel	ATM	11	108093559	108236235	hg19
+17328	/path/17328.sorted.bam	normal-panel	ATM	11	108093559	108236235	hg19
+17329	/path/17328.sorted.bam	normal-panel	ATM	11	108093559	108236235	hg19
+17330	/path/17330.sorted.bam	normal-panel	ATM	11	108093559	108236235	hg19
+17398	/path/17398.sorted.bam	normal	ATM	11	108093559	108236235	hg19
+17334	/path/17334.sorted.bam	positive	ATM	11	108235809	108236235	hg19
