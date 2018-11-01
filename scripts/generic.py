@@ -39,9 +39,7 @@ class BaseCNVTool:
 
     def base_output_dirs(self):
         """Returns base directory for output: (system_base, docker_base)"""
-        output_base = (
-            f"{cnv_pat_dir}/output/{self.cohort}/{self.start_time}/" f"{self.run_type}/{self.gene}"
-        )
+        output_base = f"{cnv_pat_dir}/output/{self.cohort}/{self.start_time}/{self.run_type}/{self.gene}"
         docker_output_base = output_base.replace(cnv_pat_dir, "/mnt")
 
         return (output_base, docker_output_base)
@@ -72,23 +70,29 @@ class BaseCNVTool:
         )
 
     def parse_vcf_4_2(self, vcf_path):
-        """Parses VCF v4.2, if positive cnv, returns dict of information"""
+        """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
         cnvs = []
+        output_path = vcf_path.split("output/")[-1]
+        cnv_caller, gene, *args = output_path.split("/")
+        sample_id = args[-1].replace(".vcf", "").replace("_segments", "").replace("_intervals", "")
+
         with open(vcf_path) as handle:
             for line in vcf_path:
                 if line.startswith("#"):
                     continue
-                chrom, pos, var_id, ref, alt, qual, var_filter, info, var_format, data = (
-                    line.split()
-                )
 
-                call_data = {
-                    key: value for (key, value) in zip(var_format.split(":"), data.split(":"))
-                }
+                fields = ["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info", "format", "data"]
+                row = {field: data for (field, data) in zip(fields, line.split())}
+
+                call_data = {key: value for (key, value) in zip(row["format"].split(":"), row["data"].split(":"))}
                 if call_data["CN"] != "0":
-                    call_data["chrom"] = chrom
-                    call_data["id"] = var_id
-                    call_data["start"] = pos
-                    call_data["end"] = info.replace("END=", "")
+                    row["start"] = row.pop("pos")
+                    cnv = {
+                        **row,
+                        "end": row["info"].replace("END=", ""),
+                        "cnv_caller": cnv_caller,
+                        "gene": gene,
+                        "sample_id": sample_id,
+                    }
 
-                    cnvs.append(call_data)
+                    cnvs.append(cnv)

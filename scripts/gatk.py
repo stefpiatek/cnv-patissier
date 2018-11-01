@@ -59,24 +59,16 @@ class GATKCase(GATKBase):
         self.run_type = "gatk-case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
-        normal_path = (
-            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk-cohort/{self.gene}.toml"
-        )
+        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk-cohort/{self.gene}.toml"
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
-        self.normal_path_base = (
-            f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk-cohort/{self.gene}"
-        )
+        self.normal_path_base = f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk-cohort/{self.gene}"
 
         self.settings = {
             **self.settings,
             "normal_panel_start_time": normal_config["start_time"],
-            "pre_process_interval": (
-                f"{self.normal_path_base}/PreprocessIntervals/intervals.interval_list"
-            ),
-            "contig_ploidy_model": (
-                f"{self.normal_path_base}/DetermineGermlineContigPloidy/normal-cohort-model"
-            ),
+            "pre_process_interval": (f"{self.normal_path_base}/PreprocessIntervals/intervals.interval_list"),
+            "contig_ploidy_model": (f"{self.normal_path_base}/DetermineGermlineContigPloidy/normal-cohort-model"),
             "gcnv_model": (f"{self.normal_path_base}/GermlineCNVCaller/normal-cohort-run-model"),
         }
 
@@ -167,9 +159,9 @@ class GATKCase(GATKBase):
                     "--sequence-dictionary",
                     self.settings["ref_fasta"].replace(".fa", ".dict"),
                     "--output-genotyped-intervals",
-                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_intervals.vcf",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_intervals.vcf",
                     "--output-genotyped-segments",
-                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_segments.vcf",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
 
@@ -178,9 +170,7 @@ class GATKCase(GATKBase):
 
     def write_settings_toml(self, sample_name):
         """Write case toml data for successful run"""
-        output_dir = (
-            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}"
-        )
+        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}"
         try:
             os.makedirs(output_dir)
         except FileExistsError:
@@ -197,9 +187,7 @@ class GATKCohort(GATKBase):
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
     def run_workflow(self):
-        pre_process_interval_out = (
-            f"{self.docker_output_base}/PreprocessIntervals/intervals.interval_list"
-        )
+        pre_process_interval_out = f"{self.docker_output_base}/PreprocessIntervals/intervals.interval_list"
         self.run_gatk_command(
             [
                 "PreprocessIntervals",
@@ -299,9 +287,7 @@ class GATKCohort(GATKBase):
 
         post_germline_cnv_caller_dir = f"{self.docker_output_base}/PostprocessGermlineCNVCalls"
 
-        for sample in glob.glob(
-            f"{self.output_base}/GermlineCNVCaller/normal-cohort-run-calls/SAMPLE_*"
-        ):
+        for sample in glob.glob(f"{self.output_base}/GermlineCNVCaller/normal-cohort-run-calls/SAMPLE_*"):
             sample_index = sample.split("_")[-1]
             with open(f"{sample}/sample_name.txt") as handle:
                 sample_name = handle.readline().strip()
@@ -325,9 +311,9 @@ class GATKCohort(GATKBase):
                     "--sequence-dictionary",
                     self.settings["ref_fasta"].replace(".fa", ".dict"),
                     "--output-genotyped-intervals",
-                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_intervals.vcf",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_intervals.vcf",
                     "--output-genotyped-segments",
-                    f"{post_germline_cnv_caller_dir}/{sample_name}_genotyped_segments.vcf",
+                    f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
 

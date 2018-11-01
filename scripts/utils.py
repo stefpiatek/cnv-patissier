@@ -25,9 +25,7 @@ class SampleUtils:
                         output_ids.append(sample["sample_id"].strip())
                         output_paths.append(sample["sample_path"].strip())
         assert len(set(output_ids)) == len(output_ids), "sample sheet sample_ids must be unique"
-        assert len(set(output_paths)) == len(
-            output_paths
-        ), "sample sheet sample_paths must be unique"
+        assert len(set(output_paths)) == len(output_paths), "sample sheet sample_paths must be unique"
         return output_ids, output_paths
 
     @classmethod
