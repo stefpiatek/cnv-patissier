@@ -22,8 +22,8 @@ class SampleUtils:
             for sample in samples:
                 for cnv_status in cnv_statuses:
                     if sample["result_type"] == cnv_status:
-                        output_ids.append(sample["sample_id"])
-                        output_paths.append(sample["sample_path"])
+                        output_ids.append(sample["sample_id"].strip())
+                        output_paths.append(sample["sample_path"].strip())
         assert len(set(output_ids)) == len(output_ids), "sample sheet sample_ids must be unique"
         assert len(set(output_paths)) == len(
             output_paths
@@ -36,7 +36,7 @@ class SampleUtils:
         abs_paths = [os.path.abspath(path) for path in paths]
         common_prefix = os.path.commonprefix(abs_paths)
         end_of_path = common_prefix.rfind("/")
-        common_path = common_prefix[:end_of_path + 1]
+        common_path = common_prefix[: end_of_path + 1]
         assert common_path, "all bams must be on the same drive/mount point"
         return common_path
 
