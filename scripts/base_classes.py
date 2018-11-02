@@ -1,6 +1,7 @@
 import glob
 import os
 import subprocess
+import toml
 
 from . import utils
 
@@ -44,32 +45,6 @@ class BaseCNVTool:
 
         return (output_base, docker_output_base)
 
-    def run_docker_subprocess(self, args):
-        """Run docker subprocess as non root user, mounting input and reference genome dir"""
-        ref_genome_dir = os.path.dirname(genome_fasta_path)
-        subprocess.run(
-            [
-                "docker",
-                "run",
-                # "--user",
-                # "1000",
-                "--rm",
-                "-v",
-                f"{ref_genome_dir}:/mnt/ref_genome/:ro",
-                "-v",
-                f"{cnv_pat_dir}/input:/mnt/input/:ro",
-                "-v",
-                f"{self.bam_mount}:/mnt/bam-input/:ro",
-                "-v",
-                f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
-                "-v",
-                f"{cnv_pat_dir}/output/:/mnt/output/:rw",
-                self.settings["docker_image"],
-                *args,
-            ],
-            check=True,
-        )
-
     @staticmethod
     def parse_vcf_4_2(vcf_path):
         """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
@@ -104,3 +79,68 @@ class BaseCNVTool:
 
                     cnvs.append(cnv)
         return cnvs
+
+    def run_docker_subprocess(self, args):
+        """Run docker subprocess as non root user, mounting input and reference genome dir"""
+        ref_genome_dir = os.path.dirname(genome_fasta_path)
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                # "--user",
+                # "1000",
+                "--rm",
+                "-v",
+                f"{ref_genome_dir}:/mnt/ref_genome/:ro",
+                "-v",
+                f"{cnv_pat_dir}/input:/mnt/input/:ro",
+                "-v",
+                f"{self.bam_mount}:/mnt/bam-input/:ro",
+                "-v",
+                f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
+                "-v",
+                f"{cnv_pat_dir}/output/:/mnt/output/:rw",
+                self.settings["docker_image"],
+                *args,
+            ],
+            check=True,
+        )
+
+    def run_required(self, previous_run_settings_path):
+        """Returns True if workflow hasn't been run before or settings have changed since then"""
+        if not os.path.exists(previous_run_settings_path):
+            print(f"*** Run required for {self.cohort} {self.run_type} {self.gene} ***")
+            return True
+        with open(previous_run_settings_path) as handle:
+            previous_settings = toml.load(handle)
+            previous_settings.pop("start_time")
+            current_settings = dict(self.settings)
+            current_settings.pop("start_time")
+            if current_settings != previous_settings:
+                print(f"*** Run required for {self.cohort} {self.run_type} {self.gene} ***")
+                return True
+        print(f"*** Re-run not required for {self.cohort} {self.run_type} {self.gene} ***")
+
+    def run_workflow(self):
+        """Placeholder for individual tool running"""
+        pass
+
+    def main(self):
+        previous_run_settings_path = (
+            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}.toml"
+        )
+        if self.run_required(previous_run_settings_path):
+            self.run_workflow()
+            self.write_settings_toml()
+        # TODO: read vcfs into database
+
+    def write_settings_toml(self):
+        """Write case toml data for successful run"""
+        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/"
+        try:
+            os.makedirs(output_dir)
+        except FileExistsError:
+            print(f"*** run config directory exists for {self.cohort}/{self.run_type} ***")
+        output_path = f"{output_dir}/{self.gene}.toml"
+        with open(output_path, "w") as out_file:
+            toml.dump(self.settings, out_file)

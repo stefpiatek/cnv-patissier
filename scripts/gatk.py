@@ -28,10 +28,6 @@ class GATKBase(base_classes.BaseCNVTool):
             "docker_image": "broadinstitute/gatk:4.0.11.0",
         }
 
-    def main(self):
-        self.run_workflow()
-        self.write_settings_toml()
-
     def run_gatk_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
         try:
@@ -139,7 +135,7 @@ class GATKCase(GATKBase):
             sample_index = sample.split("_")[-1]
             with open(f"{sample}/sample_name.txt") as handle:
                 sample_name = handle.readline().strip()
-                sample_names.append(sample)
+                sample_names.append(sample_name)
             self.run_gatk_command(
                 [
                     "PostprocessGermlineCNVCalls",
@@ -165,24 +161,6 @@ class GATKCase(GATKBase):
                     f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
-        return sample_names
-
-    def main(self):
-        sample_names = self.run_workflow()
-        for sample_name in sample_names:
-            self.write_settings_toml(sample_name)
-        # TODO: read vcfs into database
-
-    def write_settings_toml(self, sample_name):
-        """Write case toml data for successful run"""
-        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}"
-        try:
-            os.makedirs(output_dir)
-        except FileExistsError:
-            pass
-        output_path = f"{output_dir}/{sample_name}.toml"
-        with open(output_path, "w") as out_file:
-            toml.dump(self.settings, out_file)
 
 
 class GATKCohort(GATKBase):
@@ -321,14 +299,3 @@ class GATKCohort(GATKBase):
                     f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
-
-    def write_settings_toml(self):
-        """Write case toml data for successful run"""
-        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/"
-        try:
-            os.makedirs(output_dir)
-        except FileExistsError:
-            print(f"*** run config directory exists for {self.cohort}/{self.run_type} ***")
-        output_path = f"{output_dir}/{self.gene}.toml"
-        with open(output_path, "w") as out_file:
-            toml.dump(self.settings, out_file)
