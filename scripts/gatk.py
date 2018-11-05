@@ -52,13 +52,13 @@ class GATKBase(base_classes.BaseCNVTool):
 class GATKCase(GATKBase):
     def __init__(self, cohort, gene, start_time):
         super().__init__(cohort, gene, start_time, normal_panel=False)
-        self.run_type = "gatk-case"
+        self.run_type = "gatk_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
-        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk-cohort/{self.gene}.toml"
+        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk_cohort/{self.gene}.toml"
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
-        self.normal_path_base = f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk-cohort/{self.gene}"
+        self.normal_path_base = f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk_cohort/{self.gene}"
 
         self.settings = {
             **self.settings,
@@ -166,7 +166,7 @@ class GATKCase(GATKBase):
 class GATKCohort(GATKBase):
     def __init__(self, cohort, gene, start_time):
         super().__init__(cohort, gene, start_time, normal_panel=True)
-        self.run_type = "gatk-cohort"
+        self.run_type = "gatk_cohort"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
     def run_workflow(self):
