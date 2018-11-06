@@ -45,6 +45,12 @@ class BaseCNVTool:
 
         return (output_base, docker_output_base)
 
+    def get_normal_panel_time(self):
+        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
+        with open(normal_path) as handle:
+            normal_config = toml.load(handle)
+        return f"{normal_config['start_time']}"
+
     @staticmethod
     def parse_vcf_4_2(vcf_path):
         """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
@@ -144,3 +150,4 @@ class BaseCNVTool:
         output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)
+
