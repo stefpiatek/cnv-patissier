@@ -33,6 +33,15 @@ class ExomeDepthCohort(ExomeDepthBase):
         super().__init__(cohort, gene, start_time, normal_panel=True)
         self.run_type = "exome-depth_cohort"
         self.output_base, self.docker_output_base = self.base_output_dirs()
+        with open(self.gene_list) as handle:
+            sample_sheet = csv.DictReader(handle, dialect='excel', delimiter="\t")
+            capture_file = set(row['capture_filename'] for row in sample_sheet)
+            assert len(capture_file) == 1, (
+                'Single capture file should be used for all samples within a sample sheet'
+                f'Gene {gene} has multiple captures for its samples, please fix this and run again '
+                )
+        self.settings = {**self.settings, "capture_path": f"/mnt/input/{cohort}/bed/{capture_file.pop()}"}
+        
 
     def run_workflow(self):
         # write bam locations to file to be read by R script
@@ -51,7 +60,7 @@ class ExomeDepthCohort(ExomeDepthBase):
         self.run_command(
             [
                 f"--bam-table={bam_table}",
-                f"--bed-file={self.settings['intervals']}",
+                f"--capture-bed={self.settings['capture_path']}",
                 f"--ref-fasta={self.settings['ref_fasta']}",
                 f"--min-mapq={self.settings['min_mapq']}",
                 "--out-path",
@@ -91,7 +100,7 @@ class ExomeDepthCase(ExomeDepthBase):
                     f"--sample-name={sample_name}",
                     f"--cohort-rdata={self.normal_path_base}/cohort.Rdata",
                     f"--min-mapq={self.settings['min_mapq']}",
-                    "--out-path",
-                    f"{self.docker_output_base}/{sample_name}.Rdata",
+                    "--out-base",
+                    f"{self.docker_output_base}/{sample_name}",
                 ]
             )

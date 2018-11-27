@@ -7,7 +7,7 @@ option_list <- list(
     make_option(c('--sample-name'), type = "character", default = NULL),  
     make_option(c('--min-mapq'), type = "numeric", default = NULL),
     make_option(c('--cohort-rdata'), type = "character", default = NULL),
-    make_option(c('--out-path'), type = "character", default = NULL)
+    make_option(c('--out-base'), type = "character", default = NULL)
 
 )
 
@@ -39,16 +39,16 @@ closest_reference <- select.reference.set(
 reference_matrix <- as.matrix(cohort_count_df[, closest_reference$reference.choice, drop = FALSE])
 selected_reference <- apply(X = reference_matrix, MAR = 1, FUN = sum)
 
-
-all_exons <- new(
+# call CNVs
+cnv_calls <- new(
     'ExomeDepth',
     test = case_count_matrix[, 1],
     reference = selected_reference,
     formula = 'cbind(test, reference) ~ 1'
 )
 
-all_exons <- CallCNVs(
-    x = all_exons,
+cnv_calls <- CallCNVs(
+    x = cnv_calls,
     transition.probability = 10^-4,
     chromosome = cohort_count_df$chromosome,
     start = cohort_count_df$start,
@@ -58,6 +58,12 @@ all_exons <- CallCNVs(
 
 
 # save data
-if (nrow(all_exons@CNV.calls) > 0) {
-    save(closest_reference, called_cnvs, file = opt$out_path)
-}
+rdata_path <- paste(opt$out_base, ".Rdata", sep = "")
+print(rdata_path)
+save(closest_reference, cnv_calls, file = rdata_path)
+
+cnv_table <- cnv_calls@CNV.calls
+cnv_table$chrom <- cnv_table$chromosome
+
+cnv_call_path <- paste(opt$out_base, ".txt", sep = "")
+write.table(cnv_calls@CNV.calls, file = cnv_call_path, sep= "\t", row.names = FALSE)

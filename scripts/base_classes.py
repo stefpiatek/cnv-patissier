@@ -14,9 +14,9 @@ class BaseCNVTool:
         self.start_time = start_time
         self.cohort = cohort
         self.gene = gene
-        gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
+        self.gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
 
-        sample_ids, bams = utils.SampleUtils.select_samples(gene_list, normal_panel=normal_panel)
+        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
 
         self.bam_mount = utils.SampleUtils.get_mount_point(bams)
 
@@ -58,7 +58,6 @@ class BaseCNVTool:
         output_path = vcf_path.split("output/")[-1]
         cohort, time_start, cnv_caller, gene, *args = output_path.split("/")
         sample_id = args[-1].replace(".vcf", "").replace("_segments", "").replace("_intervals", "")
-        print(vcf_path)
         with open(vcf_path) as handle:
             for line in handle:
                 if line.startswith("#"):
