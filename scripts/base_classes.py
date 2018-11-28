@@ -149,4 +149,3 @@ class BaseCNVTool:
         output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)
-
