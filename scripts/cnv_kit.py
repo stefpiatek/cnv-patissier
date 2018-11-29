@@ -4,8 +4,6 @@ https://cnvkit.readthedocs.io/en/stable/germline.html
 
 
 """
-
-
 import subprocess
 import os
 
@@ -56,16 +54,16 @@ class CNVKit(base_classes.BaseCNVTool):
                 f"{self.docker_output_base}/reference.cnn",
                 "--output-dir",
                 f"{self.docker_output_base}/batch-results/",
-                "-p", f"{self.settings['max_cpu']}",
+                "-p",
+                f"{self.settings['max_cpu']}",
             ]
         )
 
-
-        for bam_path in self.settings['unknown_bams']:
+        for bam_path in self.settings["unknown_bams"]:
             sample = bam_path.split("/")[-1].replace(".bam", "")
             gene_metric_out = f"{self.output_base}/{sample.replace(self.sample_suffix, '')}.txt"
 
-            #segmetrics to get confidence intervals for filtering in call
+            # segmetrics to get confidence intervals for filtering in call
             self.run_cnvkit_command(
                 [
                     "segmetrics",
@@ -75,16 +73,16 @@ class CNVKit(base_classes.BaseCNVTool):
                     f"{self.docker_output_base}/batch-results/{sample}.cnr",
                     "-o",
                     f"{self.docker_output_base}/batch-results/{sample}_ci.cns",
-
                 ]
             )
 
             self.run_cnvkit_command(
                 [
                     "call",
-                    "-m", "clonal",
+                    "-m",
+                    "clonal",
                     f"{self.docker_output_base}/batch-results/{sample}_ci.cns",
-                    "--filter", 
+                    "--filter",
                     "ci",
                     "-o",
                     f"{self.docker_output_base}/batch-results/{sample}_calls.cns",

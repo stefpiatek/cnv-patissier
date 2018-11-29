@@ -120,6 +120,7 @@ class BaseCNVTool:
                 *args,
             ],
             check=True,
+            stdout=stdout,
         )
 
     def run_required(self, previous_run_settings_path):

@@ -72,7 +72,7 @@ class GATKCase(GATKBase):
 
         collect_read_counts = []
         for bam in self.settings["bams"]:
-            sample_name = bam.replace(".bam", "").replace(".sorted", "").split("/")[-1]
+            sample_name = bam.replace(".bam", "").replace(self.sample_suffix, "").split("/")[-1]
             hdf5_name = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hdf5"
             collect_read_counts.append(hdf5_name)
             self.run_gatk_command(
@@ -195,7 +195,7 @@ class GATKCohort(GATKBase):
             collect_read_count_out = (
                 pre_process_interval_out.replace("PreprocessIntervals/", "CollectReadCounts/")
                 .replace("intervals.interval_list", hdf5_name)
-                .replace(".sorted", "")
+                .replace(self.sample_suffix, "")
             )
             collect_read_counts.append(collect_read_count_out)
             self.run_gatk_command(
