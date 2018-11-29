@@ -1,0 +1,1 @@
+sample_id	sample_path	result_type	target_gene	chromosome	start	end	genome_build
