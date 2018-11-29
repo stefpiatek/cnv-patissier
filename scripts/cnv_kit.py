@@ -29,7 +29,7 @@ class CNVKit(base_classes.BaseCNVTool):
         self.settings["normal_bams"] = self.settings.pop("bams")
 
     def run_cnvkit_command(self, args, stdout=None):
-        """Create dir for output and runs a GATK command in docker"""
+        """Create dir for output and runs a CNV-tool command in docker"""
         try:
             os.makedirs(f"{self.output_base}/")
         except FileExistsError:
