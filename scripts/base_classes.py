@@ -1,3 +1,4 @@
+import csv
 import glob
 import os
 import subprocess
@@ -14,6 +15,7 @@ class BaseCNVTool:
         self.start_time = start_time
         self.cohort = cohort
         self.gene = gene
+        self.sample_suffix = ".sorted"
         self.gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
 
         sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
@@ -24,6 +26,14 @@ class BaseCNVTool:
 
         max_cpu = "30"
         max_mem = "50"
+
+        with open(self.gene_list) as handle:
+            sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
+            capture_file = set(row["capture_filename"] for row in sample_sheet)
+            assert len(capture_file) == 1, (
+                "Single capture file should be used for all samples within a sample sheet"
+                f"Gene {gene} has multiple captures for its samples, please fix this and run again "
+            )
 
         self.settings = {
             "bams": docker_bams,
@@ -36,6 +46,7 @@ class BaseCNVTool:
             "cohort": self.cohort,
             "gene": self.gene,
             "start_time": start_time,
+            "capture_path": f"/mnt/input/{cohort}/bed/{capture_file.pop()}",
         }
 
     def base_output_dirs(self):
@@ -85,7 +96,7 @@ class BaseCNVTool:
                     cnvs.append(cnv)
         return cnvs
 
-    def run_docker_subprocess(self, args):
+    def run_docker_subprocess(self, args, stdout=None):
         """Run docker subprocess as non root user, mounting input and reference genome dir"""
         ref_genome_dir = os.path.dirname(genome_fasta_path)
         subprocess.run(
