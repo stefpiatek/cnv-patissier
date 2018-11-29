@@ -14,9 +14,9 @@ class BaseCNVTool:
         self.start_time = start_time
         self.cohort = cohort
         self.gene = gene
-        gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
+        self.gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
 
-        sample_ids, bams = utils.SampleUtils.select_samples(gene_list, normal_panel=normal_panel)
+        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
 
         self.bam_mount = utils.SampleUtils.get_mount_point(bams)
 
@@ -45,6 +45,12 @@ class BaseCNVTool:
 
         return (output_base, docker_output_base)
 
+    def get_normal_panel_time(self):
+        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
+        with open(normal_path) as handle:
+            normal_config = toml.load(handle)
+        return f"{normal_config['start_time']}"
+
     @staticmethod
     def parse_vcf_4_2(vcf_path):
         """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
@@ -52,7 +58,6 @@ class BaseCNVTool:
         output_path = vcf_path.split("output/")[-1]
         cohort, time_start, cnv_caller, gene, *args = output_path.split("/")
         sample_id = args[-1].replace(".vcf", "").replace("_segments", "").replace("_intervals", "")
-        print(vcf_path)
         with open(vcf_path) as handle:
             for line in handle:
                 if line.startswith("#"):
@@ -144,3 +149,4 @@ class BaseCNVTool:
         output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)
+

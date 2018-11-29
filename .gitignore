@@ -1,4 +1,4 @@
-# Rroject specific
+# Project specific
 .*
 !.gitignore
 !.gitkeep
@@ -11,6 +11,9 @@ successful-run-settings/
 !successful-run-settings/.gitkeep
 tests/coverage_html/
 ! tests/coverage_html/.gitkeep
+*.gz
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
