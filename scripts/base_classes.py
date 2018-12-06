@@ -56,6 +56,26 @@ class BaseCNVTool:
 
         return (output_base, docker_output_base)
 
+    def delete_unused_runs(self):
+        print(f"*** Removing any old or unsuccessful runs for {self.cohort}, {self.run_type} ,{self.gene}***")
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-v",
+                f"{cnv_pat_dir}/output/:/mnt/output/:rw",
+                "-v",
+                f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
+                "frolvlad/alpine-python3",
+                "python3.6",
+                "/mnt/cnv-caller-resources/alpine-python/remove_directories.py",
+                self.cohort,
+                self.run_type,
+                self.gene,
+            ]
+        )
+
     def get_normal_panel_time(self):
         normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
         with open(normal_path) as handle:
@@ -103,8 +123,6 @@ class BaseCNVTool:
             [
                 "docker",
                 "run",
-                # "--user",
-                # "1000",
                 "--rm",
                 "-v",
                 f"{ref_genome_dir}:/mnt/ref_genome/:ro",
@@ -127,6 +145,7 @@ class BaseCNVTool:
         """Returns True if workflow hasn't been run before or settings have changed since then"""
         if not os.path.exists(previous_run_settings_path):
             print(f"*** Run required for {self.cohort} {self.run_type} {self.gene} ***")
+            self.delete_unused_runs()
             return True
         with open(previous_run_settings_path) as handle:
             previous_settings = toml.load(handle)
@@ -135,6 +154,7 @@ class BaseCNVTool:
             current_settings.pop("start_time")
             if current_settings != previous_settings:
                 print(f"*** Run required for {self.cohort} {self.run_type} {self.gene} ***")
+                self.delete_unused_runs()
                 return True
         print(f"*** Re-run not required for {self.cohort} {self.run_type} {self.gene} ***")
 
