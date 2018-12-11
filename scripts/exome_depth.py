@@ -1,11 +1,13 @@
 """
+Exome Depth run with defaults from vignette https://cran.r-project.org/web/packages/ExomeDepth/vignettes/ExomeDepth-vignette.pdf
 
+- Uses GC content normalisation
 """
 
+import csv
 import glob
 import subprocess
 import os
-import csv
 
 import toml
 

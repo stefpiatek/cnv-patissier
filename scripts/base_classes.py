@@ -1,7 +1,12 @@
+"""
+Base class for running of a CNV tool - each tool inherits from this class
+"""
+
 import csv
 import glob
 import os
 import subprocess
+
 import toml
 
 from . import utils
