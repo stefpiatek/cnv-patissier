@@ -1,8 +1,8 @@
 """
 Defaults used from XHMM documentation https://atgu.mgh.harvard.edu/xhmm/tutorial.shtml
 
-- no parallism at the mmoment
-- no GC extreme masking 
+- masks regions with extreme GC content 
+- no parallism at the moment
 - no repeat masking using PLINK/Seq
 - Altered filtering to allow for high read depth
    - Max target read depth: 1000
@@ -114,13 +114,11 @@ class XHMM(base_classes.BaseCNVTool):
         )
 
         xhmm_read_depth_out = f"{self.docker_output_base}/DATA.RD.txt"
-
         self.run_xhmm_command(
             ["--mergeGATKdepths", "--GATKdepths", f"{depth_out}.sample_interval_summary", "-o", xhmm_read_depth_out]
         )
 
-        gc_content_out = f"{self.docker_output_base}/DATA.locus_GC.txt"
-
+        gc_content_out = f"{self.docker_output_base}/GCContentByInterval/locus_GC.txt"
         self.run_gatk_command(
             [
                 "GCContentByInterval",
@@ -132,10 +130,14 @@ class XHMM(base_classes.BaseCNVTool):
                 gc_content_out,
             ]
         )
-        extreme_gc_out = f"{self.output_base}/extreme_gc_targets.txt"
-        with open(extreme_gc_out, "w") as handle:
+
+        extreme_gc_out = f"{self.docker_output_base}/extreme_gc_targets.txt"
+        with open(extreme_gc_out.replace(self.docker_output_base, self.output_base), "w") as handle:
             subprocess.run(
-                [f"cat {gc_content_out} | " "awk '{if ($2 < 0.1 || $2 > 0.9) print $1}' "],
+                [
+                    f"cat {gc_content_out.replace(self.docker_output_base, self.output_base)} | "
+                    "awk '{if ($2 < 0.1 || $2 > 0.9) print $1}' "
+                ],
                 shell=True,
                 check=True,
                 stdout=handle,
@@ -155,6 +157,8 @@ class XHMM(base_classes.BaseCNVTool):
                 f"{centered_filtered_out}.filtered-targets.txt",
                 "--outputExcludedSamples",
                 f"{centered_filtered_out}.filtered-samples.txt",
+                "--excludeTargets",
+                extreme_gc_out,
                 "--minTargetSize",
                 "10",
                 "--maxTargetSize",
@@ -228,8 +232,6 @@ class XHMM(base_classes.BaseCNVTool):
                 f"{centered_filtered_out}.filtered-targets.txt",
                 "--excludeTargets",
                 f"{sample_zscores}.filtered-targets.txt",
-                "--excludeTargets",
-                extreme_gc_out,
                 "--excludeSamples",
                 f"{centered_filtered_out}.filtered-samples.txt",
                 "--excludeSamples",
