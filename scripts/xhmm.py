@@ -10,11 +10,8 @@ Defaults used from XHMM documentation https://atgu.mgh.harvard.edu/xhmm/tutorial
    - Max sample SD read depth: 300
 """
 
-import glob
 import subprocess
 import os
-
-import toml
 
 from . import utils, base_classes
 
