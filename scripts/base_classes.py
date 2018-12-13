@@ -130,7 +130,7 @@ class BaseCNVTool:
                 "run",
                 "--rm",
                 "-v",
-                f"{ref_genome_dir}:/mnt/ref_genome/:ro",
+                f"{ref_genome_dir}:/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/:ro",
                 "-v",
                 f"{cnv_pat_dir}/input:/mnt/input/:ro",
                 "-v",
