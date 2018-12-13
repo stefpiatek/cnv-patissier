@@ -1,6 +1,6 @@
 """
 Canvas run using targeted capture somatic settings
-Version 1.11.0 used because WES broken in later versions: 
+Version 1.11.0 (Released 3rd June 2016) used because WES workflow broken in later versions: 
     - https://github.com/Illumina/canvas/issues/86 
     - https://github.com/Illumina/canvas/issues/62
 
@@ -115,7 +115,7 @@ class Canvas(base_classes.BaseCNVTool):
                 )
 
 
-            # add chr back on to chromosomes
+            # add chr back on to chromosomes: if line doesn't start with #, add chr to start of line
             subprocess.run(["sed", "-i", "'/^#/! s/^/chr/'", capture_vcf_out])
 
             #subprocess.run(["gzip", capture_vcf_out], check=True)
@@ -169,8 +169,10 @@ class Canvas(base_classes.BaseCNVTool):
                 # first part of command is the optput file so remove that
                 last_command = last_command.replace('"', '').split()[1:]
                 self.run_docker_subprocess(last_command)
-                with open(f"{self.output_base}/Checkpoints/03-CanvasClean.json", "r") as handle:
-                    handle.write("${Output}" f"/TempCNV_{sample}/{sample}.cleaned")
+                self.run_docker_subprocess(
+                    ["echo '\"${Output}" f"/TempCNV_{sample}/{sample}.cleaned\"' "
+                    f" > {self.docker_output_base}/Checkpoints/03-CanvasClean.json"]
+                )
 
             self.run_canvas_command([
                     "Somatic-Enrichment",
