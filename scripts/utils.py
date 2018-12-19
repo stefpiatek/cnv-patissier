@@ -9,6 +9,14 @@ def get_cnv_patissier_dir():
 
 class SampleUtils:
     @classmethod
+    def get_bam_to_id(cls, sample_sheet):
+        normal_id, normal_path = cls.select_samples(sample_sheet, normal_panel=True)
+        unknown_id, unknown_path = cls.select_samples(sample_sheet, normal_panel=False)
+        paths = normal_path + unknown_path
+        sample_ids = normal_id + unknown_id
+        return {path: sample_id for (path, sample_id) in zip(paths, sample_ids)}
+
+    @classmethod
     def select_samples(cls, sample_sheet, normal_panel):
         """returns (sample_ids, sample_paths) from a gene's sample sheet"""
         if normal_panel:

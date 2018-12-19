@@ -24,10 +24,14 @@ class BaseCNVTool:
         self.gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
 
         sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
+        bam_to_sample = utils.SampleUtils.get_bam_to_id(self.gene_list)
 
         self.bam_mount = utils.SampleUtils.get_mount_point(bams)
 
         docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
+        self.bam_to_sample = {
+            f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id for (bam, sample_id) in bam_to_sample.items()
+        }
 
         max_cpu = "30"
         max_mem = "50"
@@ -42,7 +46,7 @@ class BaseCNVTool:
 
         self.settings = {
             "bams": docker_bams,
-            "ref_fasta": f"/mnt/ref_genome/{genome_fasta_path.split('/')[-1]}",
+            "ref_fasta": f"/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/{genome_fasta_path.split('/')[-1]}",
             "intervals": f"/mnt/input/{cohort}/bed/{gene}.bed",
             "max_cpu": max_cpu,
             "max_mem": max_mem,
@@ -121,9 +125,12 @@ class BaseCNVTool:
                     cnvs.append(cnv)
         return cnvs
 
-    def run_docker_subprocess(self, args, stdout=None):
-        """Run docker subprocess as non root user, mounting input and reference genome dir"""
+    def run_docker_subprocess(self, args, stdin=None, stdout=None, docker_image=None):
+        """Run docker subprocess as root user, mounting input and reference genome dir"""
         ref_genome_dir = os.path.dirname(genome_fasta_path)
+        if not docker_image:
+            docker_image = self.settings["docker_image"]
+
         subprocess.run(
             [
                 "docker",
@@ -139,7 +146,7 @@ class BaseCNVTool:
                 f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
                 "-v",
                 f"{cnv_pat_dir}/output/:/mnt/output/:rw",
-                self.settings["docker_image"],
+                docker_image,
                 *args,
             ],
             check=True,
