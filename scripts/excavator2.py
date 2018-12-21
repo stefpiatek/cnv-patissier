@@ -12,8 +12,8 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 class Excavator2(base_classes.BaseCNVTool):
-    def __init__(self, cohort, gene, start_time, normal_panel=True):
-        super().__init__(cohort, gene, start_time, normal_panel)
+    def __init__(self, capture, gene, start_time, normal_panel=True):
+        super().__init__(capture, gene, start_time, normal_panel)
 
         self.run_type = "excavator2"
 

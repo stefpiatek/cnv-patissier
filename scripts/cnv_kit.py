@@ -15,8 +15,8 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 class CNVKit(base_classes.BaseCNVTool):
-    def __init__(self, cohort, gene, start_time):
-        super().__init__(cohort, gene, start_time, normal_panel=True)
+    def __init__(self, capture, gene, start_time):
+        super().__init__(capture, gene, start_time, normal_panel=True)
         self.run_type = "cnvkit"
 
         self.output_base, self.docker_output_base = self.base_output_dirs()
@@ -59,9 +59,10 @@ class CNVKit(base_classes.BaseCNVTool):
             ]
         )
 
-        for bam_path in self.settings["unknown_bams"]:
-            sample = bam_path.split("/")[-1].replace(".bam", "")
-            gene_metric_out = f"{self.output_base}/{sample.replace(self.sample_suffix, '')}.txt"
+        for bam in self.settings["unknown_bams"]:
+            sample = bam.split("/")[-1].replace(".bam", "")
+            sample_name = self.bam_to_sample[bam]
+            gene_metric_out = f"{self.output_base}/{sample_name}.txt"
 
             # segmetrics to get confidence intervals for filtering in call
             self.run_cnvkit_command(

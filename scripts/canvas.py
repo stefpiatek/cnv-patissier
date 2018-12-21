@@ -12,7 +12,7 @@ This requires GenomeSize.xml in genome dir and kmer.fa genome.fa, though I don't
 in large comparison set so don't add to requirements until initial comparison
 
 
-TODO make cohort be capture and then rewrite all of panel or normals to be written above line
+TODO make capture be capture and then rewrite all of panel or normals to be written above line
 """
 
 import subprocess
@@ -24,8 +24,8 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 class Canvas(base_classes.BaseCNVTool):
-    def __init__(self, cohort, gene, start_time, normal_panel=True):
-        super().__init__(cohort, gene, start_time, normal_panel)
+    def __init__(self, capture, gene, start_time, normal_panel=True):
+        super().__init__(capture, gene, start_time, normal_panel)
 
         self.run_type = "canvas"
 
@@ -135,7 +135,7 @@ class Canvas(base_classes.BaseCNVTool):
 
         for index, bam in enumerate(self.settings["unknown_bams"]):
             error_count = 0
-            sample = bam.split("/")[-1].replace(".bam", "").replace(".sorted", "")
+            sample = self.bam_to_sample[bam]
             sample_out = f"{self.docker_output_base}/{sample}"
             try:
                 os.makedirs(f"{self.output_base}/{sample}")

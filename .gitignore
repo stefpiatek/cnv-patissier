@@ -13,7 +13,7 @@ tests/coverage_html/
 ! tests/coverage_html/.gitkeep
 *.gz
 docker-images/*
-!docker-images/*/DockerFile
+!docker-images/*/Dockerfile
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

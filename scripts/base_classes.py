@@ -16,12 +16,12 @@ genome_fasta_path = "/var/reference_sequences/MiSeq/genome.fa"
 
 
 class BaseCNVTool:
-    def __init__(self, cohort, gene, start_time, normal_panel=True):
+    def __init__(self, capture, gene, start_time, normal_panel=True):
         self.start_time = start_time
-        self.cohort = cohort
+        self.capture = capture
         self.gene = gene
         self.sample_suffix = ".sorted"
-        self.gene_list = f"{cnv_pat_dir}/input/{cohort}/sample-sheets/{gene}_samples.txt"
+        self.gene_list = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
 
         sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
         bam_to_sample = utils.SampleUtils.get_bam_to_id(self.gene_list)
@@ -38,7 +38,7 @@ class BaseCNVTool:
 
         with open(self.gene_list) as handle:
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
-            capture_file = set(row["capture_filename"] for row in sample_sheet)
+            capture_file = set(f"{row['capture_name']}.bed" for row in sample_sheet)
             assert len(capture_file) == 1, (
                 "Single capture file should be used for all samples within a sample sheet"
                 f"Gene {gene} has multiple captures for its samples, please fix this and run again "
@@ -46,27 +46,27 @@ class BaseCNVTool:
 
         self.settings = {
             "bams": docker_bams,
-            "ref_fasta": f"/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/{genome_fasta_path.split('/')[-1]}",
-            "intervals": f"/mnt/input/{cohort}/bed/{gene}.bed",
+            "ref_fasta": f"/mnt/ref_genome/{genome_fasta_path.split('/')[-1]}",
+            "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
             "max_cpu": max_cpu,
             "max_mem": max_mem,
             "docker_image": None,
             "chromosome_prefix": "chr",
-            "cohort": self.cohort,
+            "capture": self.capture,
             "gene": self.gene,
             "start_time": start_time,
-            "capture_path": f"/mnt/input/{cohort}/bed/{capture_file.pop()}",
+            "capture_path": f"/mnt/input/{capture}/bed/{capture_file.pop()}",
         }
 
     def base_output_dirs(self):
         """Returns base directory for output: (system_base, docker_base)"""
-        output_base = f"{cnv_pat_dir}/output/{self.cohort}/{self.start_time}/{self.run_type}/{self.gene}"
+        output_base = f"{cnv_pat_dir}/output/{self.capture}/{self.start_time}/{self.run_type}/{self.gene}"
         docker_output_base = output_base.replace(cnv_pat_dir, "/mnt")
 
         return (output_base, docker_output_base)
 
     def delete_unused_runs(self):
-        print(f"*** Removing any old or unsuccessful runs for {self.cohort}, {self.run_type} ,{self.gene}***")
+        print(f"*** Removing any old or unsuccessful runs for {self.capture}, {self.run_type} ,{self.gene}***")
         subprocess.run(
             [
                 "docker",
@@ -79,14 +79,17 @@ class BaseCNVTool:
                 "frolvlad/alpine-python3",
                 "python3.6",
                 "/mnt/cnv-caller-resources/alpine-python/remove_directories.py",
-                self.cohort,
+                self.capture,
                 self.run_type,
                 self.gene,
             ]
         )
 
     def get_normal_panel_time(self):
-        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
+        normal_path = (
+            f"{cnv_pat_dir}/successful-run-settings/{self.capture}/"
+            f"{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
+        )
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
         return f"{normal_config['start_time']}"
@@ -96,7 +99,7 @@ class BaseCNVTool:
         """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
         cnvs = []
         output_path = vcf_path.split("output/")[-1]
-        cohort, time_start, cnv_caller, gene, *args = output_path.split("/")
+        capture, time_start, cnv_caller, gene, *args = output_path.split("/")
         sample_id = args[-1].replace(".vcf", "").replace("_segments", "").replace("_intervals", "")
         with open(vcf_path) as handle:
             for line in handle:
@@ -119,7 +122,7 @@ class BaseCNVTool:
                         "cnv_caller": cnv_caller,
                         "gene": gene,
                         "sample_id": sample_id,
-                        "cohort": cohort,
+                        "capture": capture,
                     }
 
                     cnvs.append(cnv)
@@ -137,7 +140,7 @@ class BaseCNVTool:
                 "run",
                 "--rm",
                 "-v",
-                f"{ref_genome_dir}:/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/:ro",
+                f"{ref_genome_dir}:/mnt/ref_genome/:ro",
                 "-v",
                 f"{cnv_pat_dir}/input:/mnt/input/:ro",
                 "-v",
@@ -156,7 +159,7 @@ class BaseCNVTool:
     def run_required(self, previous_run_settings_path):
         """Returns True if workflow hasn't been run before or settings have changed since then"""
         if not os.path.exists(previous_run_settings_path):
-            print(f"*** Run required for {self.cohort} {self.run_type} {self.gene} ***")
+            print(f"*** Run required for {self.capture} {self.run_type} {self.gene} ***")
             self.delete_unused_runs()
             return True
         with open(previous_run_settings_path) as handle:
@@ -165,10 +168,10 @@ class BaseCNVTool:
             current_settings = dict(self.settings)
             current_settings.pop("start_time")
             if current_settings != previous_settings:
-                print(f"*** Run required for {self.cohort} {self.run_type} {self.gene} ***")
+                print(f"*** Run required for {self.capture} {self.run_type} {self.gene} ***")
                 self.delete_unused_runs()
                 return True
-        print(f"*** Re-run not required for {self.cohort} {self.run_type} {self.gene} ***")
+        print(f"*** Re-run not required for {self.capture} {self.run_type} {self.gene} ***")
 
     def run_workflow(self):
         """Placeholder for individual tool running"""
@@ -176,7 +179,7 @@ class BaseCNVTool:
 
     def main(self):
         previous_run_settings_path = (
-            f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/{self.gene}.toml"
+            f"{cnv_pat_dir}/successful-run-settings/{self.capture}/{self.run_type}/{self.gene}.toml"
         )
         if self.run_required(previous_run_settings_path):
             self.run_workflow()
@@ -185,11 +188,11 @@ class BaseCNVTool:
 
     def write_settings_toml(self):
         """Write case toml data for successful run"""
-        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/{self.run_type}/"
+        output_dir = f"{cnv_pat_dir}/successful-run-settings/{self.capture}/{self.run_type}/"
         try:
             os.makedirs(output_dir)
         except FileExistsError:
-            print(f"*** run config directory exists for {self.cohort}/{self.run_type} ***")
+            print(f"*** run config directory exists for {self.capture}/{self.run_type} ***")
         output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)
