@@ -28,10 +28,11 @@ class SampleUtils:
         with open(sample_sheet) as handle:
             samples = csv.DictReader(handle, delimiter="\t")
             for sample in samples:
-                for cnv_status in cnv_statuses:
-                    if sample["result_type"] == cnv_status:
-                        output_ids.append(sample["sample_id"].strip())
-                        output_paths.append(sample["sample_path"].strip())
+                if sample["sample_id"] and sample["sample_path"]:
+                    for cnv_status in cnv_statuses:
+                        if sample["result_type"] == cnv_status:
+                            output_ids.append(sample["sample_id"].strip())
+                            output_paths.append(sample["sample_path"].strip())
         assert len(set(output_ids)) == len(output_ids), "sample sheet sample_ids must be unique"
         assert len(set(output_paths)) == len(output_paths), "sample sheet sample_paths must be unique"
         return output_ids, output_paths
