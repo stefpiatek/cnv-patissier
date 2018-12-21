@@ -10,11 +10,8 @@ Defaults used from XHMM documentation https://atgu.mgh.harvard.edu/xhmm/tutorial
    - Max sample SD read depth: 300
 """
 
-import glob
 import subprocess
 import os
-
-import toml
 
 from . import utils, base_classes
 
@@ -22,8 +19,8 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 class XHMM(base_classes.BaseCNVTool):
-    def __init__(self, cohort, gene, start_time, normal_panel=True):
-        super().__init__(cohort, gene, start_time, normal_panel)
+    def __init__(self, capture, gene, start_time, normal_panel=True):
+        super().__init__(capture, gene, start_time, normal_panel)
 
         self.run_type = "xhmm"
 

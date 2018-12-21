@@ -17,8 +17,8 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 class ExomeDepthBase(base_classes.BaseCNVTool):
-    def __init__(self, cohort, gene, start_time, normal_panel):
-        super().__init__(cohort, gene, start_time, normal_panel)
+    def __init__(self, capture, gene, start_time, normal_panel):
+        super().__init__(capture, gene, start_time, normal_panel)
 
         self.settings = {**self.settings, "docker_image": "stefpiatek/exomedepth:1.1.10", "min_mapq": 20}
 
@@ -31,8 +31,8 @@ class ExomeDepthBase(base_classes.BaseCNVTool):
 
 
 class ExomeDepthCohort(ExomeDepthBase):
-    def __init__(self, cohort, gene, start_time):
-        super().__init__(cohort, gene, start_time, normal_panel=True)
+    def __init__(self, capture, gene, start_time):
+        super().__init__(capture, gene, start_time, normal_panel=True)
         self.run_type = "exome-depth_cohort"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
@@ -63,14 +63,14 @@ class ExomeDepthCohort(ExomeDepthBase):
 
 
 class ExomeDepthCase(ExomeDepthBase):
-    def __init__(self, cohort, gene, start_time):
-        super().__init__(cohort, gene, start_time, normal_panel=False)
+    def __init__(self, capture, gene, start_time):
+        super().__init__(capture, gene, start_time, normal_panel=False)
         self.run_type = "exome-depth_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
         normal_panel_start = self.get_normal_panel_time()
         self.normal_path_base = (
-            f"/mnt/output/{self.cohort}/{normal_panel_start}/{self.run_type.replace('case', 'cohort')}/{self.gene}"
+            f"/mnt/output/{self.capture}/{normal_panel_start}/{self.run_type.replace('case', 'cohort')}/{self.gene}"
         )
 
         self.settings = {**self.settings, "normal_panel_start_time": normal_panel_start}
@@ -83,7 +83,7 @@ class ExomeDepthCase(ExomeDepthBase):
             pass
 
         for bam in self.settings["bams"]:
-            sample_name = bam.replace(".bam", "").replace(self.sample_suffix, "").split("/")[-1]
+            sample_name = self.bam_to_sample[bam]
             self.run_command(
                 [
                     f"--bam={bam}",

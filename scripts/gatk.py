@@ -16,8 +16,8 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 class GATKBase(base_classes.BaseCNVTool):
-    def __init__(self, cohort, gene, start_time, normal_panel):
-        super().__init__(cohort, gene, start_time, normal_panel)
+    def __init__(self, capture, gene, start_time, normal_panel):
+        super().__init__(capture, gene, start_time, normal_panel)
 
         self.settings = {
             **self.settings,
@@ -50,15 +50,15 @@ class GATKBase(base_classes.BaseCNVTool):
 
 
 class GATKCase(GATKBase):
-    def __init__(self, cohort, gene, start_time):
-        super().__init__(cohort, gene, start_time, normal_panel=False)
+    def __init__(self, capture, gene, start_time):
+        super().__init__(capture, gene, start_time, normal_panel=False)
         self.run_type = "gatk_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
-        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.cohort}/gatk_cohort/{self.gene}.toml"
+        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.capture}/gatk_cohort/{self.gene}.toml"
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
-        self.normal_path_base = f"/mnt/output/{self.cohort}/{normal_config['start_time']}/" f"gatk_cohort/{self.gene}"
+        self.normal_path_base = f"/mnt/output/{self.capture}/{normal_config['start_time']}/gatk_cohort/{self.gene}"
 
         self.settings = {
             **self.settings,
@@ -69,10 +69,9 @@ class GATKCase(GATKBase):
         }
 
     def run_workflow(self):
-
         collect_read_counts = []
         for bam in self.settings["bams"]:
-            sample_name = bam.replace(".bam", "").replace(self.sample_suffix, "").split("/")[-1]
+            sample_name = self.bam_to_sample[bam]
             hdf5_name = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hdf5"
             collect_read_counts.append(hdf5_name)
             self.run_gatk_command(
@@ -177,7 +176,7 @@ class GATKCohort(GATKBase):
                 "-R",
                 self.settings["ref_fasta"],
                 "-L",
-                self.settings["intervals"],
+                self.settings["capture_path"],
                 "--padding",
                 self.settings["padding"],
                 "--bin-length",
@@ -191,12 +190,9 @@ class GATKCohort(GATKBase):
 
         collect_read_counts = []
         for bam in self.settings["bams"]:
-            hdf5_name = bam.split("/")[-1].replace(".bam", ".hdf5")
-            collect_read_count_out = (
-                pre_process_interval_out.replace("PreprocessIntervals/", "CollectReadCounts/")
-                .replace("intervals.interval_list", hdf5_name)
-                .replace(self.sample_suffix, "")
-            )
+            sample_name = self.bam_to_sample[bam]
+            collect_read_count_out = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hd5f"
+
             collect_read_counts.append(collect_read_count_out)
             self.run_gatk_command(
                 [
@@ -211,23 +207,6 @@ class GATKCohort(GATKBase):
                     collect_read_count_out,
                 ]
             )
-
-        # # scattered intervals not using but kept in for a little bit
-        # split_intervals_out = f"{self.docker_output_base}/SplitIntervals/"
-
-        # self.run_gatk_command(
-        #     [
-        #         "SplitIntervals",
-        #         "-R",
-        #         self.settings["ref_fasta"],
-        #         "-L",
-        #         pre_process_interval_out,
-        #         "--scatter-count",
-        #         self.settings["num_intervals_per_scatter"],
-        #         "-O",
-        #         split_intervals_out,
-        #     ]
-        # )
 
         input_flags = []
         for sample in collect_read_counts:

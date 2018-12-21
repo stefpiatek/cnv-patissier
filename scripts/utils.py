@@ -9,6 +9,14 @@ def get_cnv_patissier_dir():
 
 class SampleUtils:
     @classmethod
+    def get_bam_to_id(cls, sample_sheet):
+        normal_id, normal_path = cls.select_samples(sample_sheet, normal_panel=True)
+        unknown_id, unknown_path = cls.select_samples(sample_sheet, normal_panel=False)
+        paths = normal_path + unknown_path
+        sample_ids = normal_id + unknown_id
+        return {path: sample_id for (path, sample_id) in zip(paths, sample_ids)}
+
+    @classmethod
     def select_samples(cls, sample_sheet, normal_panel):
         """returns (sample_ids, sample_paths) from a gene's sample sheet"""
         if normal_panel:
@@ -20,10 +28,11 @@ class SampleUtils:
         with open(sample_sheet) as handle:
             samples = csv.DictReader(handle, delimiter="\t")
             for sample in samples:
-                for cnv_status in cnv_statuses:
-                    if sample["result_type"] == cnv_status:
-                        output_ids.append(sample["sample_id"].strip())
-                        output_paths.append(sample["sample_path"].strip())
+                if sample["sample_id"] and sample["sample_path"]:
+                    for cnv_status in cnv_statuses:
+                        if sample["result_type"] == cnv_status:
+                            output_ids.append(sample["sample_id"].strip())
+                            output_paths.append(sample["sample_path"].strip())
         assert len(set(output_ids)) == len(output_ids), "sample sheet sample_ids must be unique"
         assert len(set(output_paths)) == len(output_paths), "sample sheet sample_paths must be unique"
         return output_ids, output_paths
