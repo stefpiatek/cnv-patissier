@@ -7,7 +7,7 @@ import os
 import subprocess
 
 from . import utils, base_classes
-from .base_classes import cnv_pat_dir    
+from .base_classes import cnv_pat_dir
 
 
 class Excavator2(base_classes.BaseCNVTool):

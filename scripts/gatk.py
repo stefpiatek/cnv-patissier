@@ -11,7 +11,8 @@ import os
 import toml
 
 from . import utils, base_classes
-from .base_classes import cnv_pat_dir    
+from .base_classes import cnv_pat_dir
+
 
 class GATKBase(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel):

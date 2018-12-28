@@ -19,7 +19,7 @@ import subprocess
 import os
 
 from . import utils, base_classes
-from base_classes import cnv_pat_dir    
+from base_classes import cnv_pat_dir
 
 
 class Canvas(base_classes.BaseCNVTool):

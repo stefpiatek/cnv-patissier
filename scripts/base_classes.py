@@ -14,6 +14,7 @@ from settings import cnv_pat_settings
 
 cnv_pat_dir = utils.get_cnv_patissier_dir()
 
+
 class BaseCNVTool:
     def __init__(self, capture, gene, start_time, normal_panel=True):
         self.start_time = start_time
@@ -44,8 +45,8 @@ class BaseCNVTool:
             "bams": docker_bams,
             "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
             "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
-            "max_cpu": cnv_pat_settings['max_cpu'],
-            "max_mem": cnv_pat_settings['max_mem'],
+            "max_cpu": cnv_pat_settings["max_cpu"],
+            "max_mem": cnv_pat_settings["max_mem"],
             "docker_image": None,
             "chromosome_prefix": "chr",
             "capture": self.capture,
@@ -126,7 +127,7 @@ class BaseCNVTool:
 
     def run_docker_subprocess(self, args, stdin=None, stdout=None, docker_image=None):
         """Run docker subprocess as root user, mounting input and reference genome dir"""
-        ref_genome_dir = os.path.dirname(cnv_pat_settings['genome_fasta_path'])
+        ref_genome_dir = os.path.dirname(cnv_pat_settings["genome_fasta_path"])
         if not docker_image:
             docker_image = self.settings["docker_image"]
 

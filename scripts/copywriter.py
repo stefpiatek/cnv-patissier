@@ -36,7 +36,7 @@ class Copywriter(base_classes.BaseCNVTool):
         # if it looks good, could use exomedepth choice of normal to select the appropriate control
 
         # assume 3 gb per worker so memory doesn't run out
-        max_workers = min([int(self.settings['max_cpu']), int(self.settings['max_mem']) // 3])
+        max_workers = min([int(self.settings["max_cpu"]), int(self.settings["max_mem"]) // 3])
         total_batches = len(self.settings["unknown_bams"]) // 30
         if len(self.settings["unknown_bams"]) % 30:
             total_batches += 1
