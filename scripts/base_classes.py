@@ -10,10 +10,9 @@ import subprocess
 import toml
 
 from . import utils
+from settings import cnv_pat_settings
 
 cnv_pat_dir = utils.get_cnv_patissier_dir()
-genome_fasta_path = "/var/reference_sequences/MiSeq/genome.fa"
-
 
 class BaseCNVTool:
     def __init__(self, capture, gene, start_time, normal_panel=True):
@@ -33,9 +32,6 @@ class BaseCNVTool:
             f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id for (bam, sample_id) in bam_to_sample.items()
         }
 
-        max_cpu = "30"
-        max_mem = "50"
-
         with open(self.gene_list) as handle:
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
             capture_file = set(f"{row['capture_name']}.bed" for row in sample_sheet)
@@ -46,10 +42,10 @@ class BaseCNVTool:
 
         self.settings = {
             "bams": docker_bams,
-            "ref_fasta": f"/mnt/ref_genome/{genome_fasta_path.split('/')[-1]}",
+            "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
             "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
-            "max_cpu": max_cpu,
-            "max_mem": max_mem,
+            "max_cpu": cnv_pat_settings['max_cpu'],
+            "max_mem": cnv_pat_settings['max_mem'],
             "docker_image": None,
             "chromosome_prefix": "chr",
             "capture": self.capture,
@@ -66,7 +62,7 @@ class BaseCNVTool:
         return (output_base, docker_output_base)
 
     def delete_unused_runs(self):
-        print(f"*** Removing any old or unsuccessful runs for {self.capture}, {self.run_type} ,{self.gene}***")
+        print(f"*** Removing any old or unsuccessful runs for {self.capture}, {self.run_type}, {self.gene}***")
         subprocess.run(
             [
                 "docker",
@@ -130,7 +126,7 @@ class BaseCNVTool:
 
     def run_docker_subprocess(self, args, stdin=None, stdout=None, docker_image=None):
         """Run docker subprocess as root user, mounting input and reference genome dir"""
-        ref_genome_dir = os.path.dirname(genome_fasta_path)
+        ref_genome_dir = os.path.dirname(cnv_pat_settings['genome_fasta_path'])
         if not docker_image:
             docker_image = self.settings["docker_image"]
 

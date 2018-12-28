@@ -15,8 +15,6 @@ import os
 
 from . import utils, base_classes
 
-cnv_pat_dir = utils.get_cnv_patissier_dir()
-
 
 class XHMM(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
