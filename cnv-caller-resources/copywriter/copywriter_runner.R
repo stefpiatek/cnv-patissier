@@ -17,7 +17,7 @@ bp.param <- SnowParam(workers = opt$max_cpu, type = "SOCK")
 
 # Create proprocessed reference
 preCopywriteR(
-	output.folder = file.path(opt$output_path),
+    output.folder = file.path(opt$output_path),
     bin.size = 50000,
     ref.genome = "hg19",
     prefix = "chr"
@@ -25,7 +25,7 @@ preCopywriteR(
 
 # Calculate read depth
 CopywriteR(
-	sample.control = all_samples,
+    sample.control = all_samples,
     destination.folder = file.path(opt$output_path),
     reference.folder = file.path(opt$output_path, "hg19_50kb_chr"),
     capture.regions.file = opt$capture_regions,
