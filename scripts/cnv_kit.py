@@ -11,8 +11,6 @@ import toml
 
 from . import utils, base_classes
 
-cnv_pat_dir = utils.get_cnv_patissier_dir()
-
 
 class CNVKit(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time):

@@ -11,8 +11,7 @@ import os
 import toml
 
 from . import utils, base_classes
-
-cnv_pat_dir = utils.get_cnv_patissier_dir()
+from .base_classes import cnv_pat_dir
 
 
 class GATKBase(base_classes.BaseCNVTool):
