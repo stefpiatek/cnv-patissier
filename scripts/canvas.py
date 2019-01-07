@@ -52,7 +52,7 @@ class Canvas(base_classes.BaseCNVTool):
         print(f"*** Completed canvas: {args[0]} {args[-1]} ***")
 
     def run_workflow(self):
-        # raise Exception("Canvas for pooled exome does not work, please don't run this")
+        raise Exception("Canvas only gives output for large exome capture only and isn't used in this project")
         try:
             os.makedirs(f"{self.output_base}")
         except FileExistsError:
