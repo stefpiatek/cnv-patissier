@@ -31,11 +31,11 @@ class CNVKit(base_classes.BaseCNVTool):
         try:
             os.makedirs(f"{self.output_base}/")
         except FileExistsError:
-            print(f"*** Output folder already exists ***")
+            base_classes.logger.info(f"Output folder already exists")
 
-        print(f"*** Running  CNVkit: {args[0]} \n output: {args[-1]} ***")
+        base_classes.logger.info(f"Running  CNVkit: {args[0]} \n output: {args[-1]}")
         self.run_docker_subprocess(["cnvkit.py", *args], stdout=stdout)
-        print(f"*** Completed  CNVkit: {args[0]} {args[-1]} ***")
+        base_classes.logger.info(f"Completed  CNVkit: {args[0]} {args[-1]}")
 
     def run_workflow(self):
         self.run_cnvkit_command(

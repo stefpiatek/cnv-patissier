@@ -22,10 +22,10 @@ class ExomeDepthBase(base_classes.BaseCNVTool):
 
     def run_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
-        print(f"*** Running  ExomeDepth: {self.run_type} \n output: {args[-1]} ***")
+        base_classes.logger.info(f"Running  ExomeDepth: {self.run_type} \n output: {args[-1]}")
 
         self.run_docker_subprocess(["Rscript", f"/mnt/cnv-caller-resources/exome-depth/{self.run_type}.R", *args])
-        print(f"*** Completed  ExomeDepth: {self.run_type} {args[-1]} ***")
+        base_classes.logger.info(f"Completed  ExomeDepth: {self.run_type} {args[-1]}")
 
 
 class ExomeDepthCohort(ExomeDepthBase):

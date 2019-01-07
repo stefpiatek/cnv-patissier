@@ -62,7 +62,7 @@ class Copywriter(base_classes.BaseCNVTool):
                     writer.writerow({"samples": normal_bam, "controls": normal_bam})
                     writer.writerow({"samples": unknown_bam, "controls": normal_bam})
 
-            print(f"*** Running CopywriteR on batch {batch_number} ***")
+            base_classes.logger.info(f"Running CopywriteR on batch {batch_number}")
             self.run_command(
                 [
                     f"--max-cpu={max_workers}",
