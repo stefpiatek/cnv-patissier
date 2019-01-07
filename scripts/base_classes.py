@@ -125,7 +125,7 @@ class BaseCNVTool:
                     cnvs.append(cnv)
         return cnvs
 
-    def run_docker_subprocess(self, args, stdin=None, stdout=None, docker_image=None):
+    def run_docker_subprocess(self, args, stdout=None, docker_image=None, docker_genome="/mnt/ref_genome/"):
         """Run docker subprocess as root user, mounting input and reference genome dir"""
         ref_genome_dir = os.path.dirname(cnv_pat_settings["genome_fasta_path"])
         if not docker_image:
@@ -137,7 +137,7 @@ class BaseCNVTool:
                 "run",
                 "--rm",
                 "-v",
-                f"{ref_genome_dir}:/mnt/ref_genome/:ro",
+                f"{ref_genome_dir}/:{docker_genome}:ro",
                 "-v",
                 f"{cnv_pat_dir}/input:/mnt/input/:ro",
                 "-v",

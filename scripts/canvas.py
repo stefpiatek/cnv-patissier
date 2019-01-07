@@ -19,7 +19,8 @@ import subprocess
 import os
 
 from . import utils, base_classes
-from base_classes import cnv_pat_dir
+from settings import cnv_pat_settings
+from .base_classes import cnv_pat_dir
 
 
 class Canvas(base_classes.BaseCNVTool):
@@ -46,11 +47,12 @@ class Canvas(base_classes.BaseCNVTool):
         """Creates dir for output and runs a GATK command in docker"""
 
         print(f"*** Running canvas: {args[0]} \n output: {args[-1]} ***")
-        self.run_docker_subprocess(["mono", "./Canvas.exe", *args])
+        self.run_docker_subprocess(["mono", "./Canvas.exe", *args], 
+            docker_genome="/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta/")
         print(f"*** Completed canvas: {args[0]} {args[-1]} ***")
 
     def run_workflow(self):
-        raise Exception("Canvas for pooled exome does not work, please don't run this")
+        raise Exception("Canvas only gives output for large exome capture only and isn't used in this project")
         try:
             os.makedirs(f"{self.output_base}")
         except FileExistsError:
@@ -70,9 +72,9 @@ class Canvas(base_classes.BaseCNVTool):
                 "#Nextera Rapid Capture Expanded Exome targeted regions manifest\t\t\t\t\t",
                 "[Header]\t\t\t\t",
                 "Manifest Version\t1\t\t\t\t",
-                "ReferenceGenome\t/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFASTA\t\t\t\t",
+                "ReferenceGenome\t/reference/Homo_sapiens/UCSC/hg19/Sequence/WholeGenomeFasta\t\t\t\t",
                 "\t\t\t\t\t",
-                "[Regions]" "\t\t\t\t\t",
+                "[Regions]\t\t\t\t\t",
                 "Name\tChromosome\tStart\tEnd\tUpstream Probe Length\tDownstream Probe Length",
             ]
             for line in header:
@@ -105,6 +107,9 @@ class Canvas(base_classes.BaseCNVTool):
 
             with open(capture_vcf_out, "w") as handle:
                 print("*** Started downloading population frequencies for canvas ***")
+                proxy = []
+                if cnv_pat_settings["http_proxy"]:
+                    proxy += ["-e", f"http_proxy={cnv_pat_settings['http_proxy']}"]
                 subprocess.run(
                     [
                         "docker",
@@ -112,8 +117,7 @@ class Canvas(base_classes.BaseCNVTool):
                         "--rm",
                         "-v",
                         f"{cnv_pat_dir}/output/:/mnt/output/:rw",
-                        "-e",
-                        "http_proxy=http://10.101.112.70:8080/",  # TODO proxy here
+                        *proxy,
                         "lethalfang/tabix:1.7",
                         "tabix",
                         "http://storage.googleapis.com/gnomad-public/release/2.1/vcf/"
