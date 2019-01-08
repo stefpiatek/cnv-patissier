@@ -136,6 +136,7 @@ class BaseCNVTool:
         ref_genome_dir = os.path.dirname(cnv_pat_settings["genome_fasta_path"])
         if not docker_image:
             docker_image = self.settings["docker_image"]
+        logger.info(f"Running {docker_image} with the following commands: {' '.join(args)}")
         process = subprocess.run(
             [
                 "docker",
