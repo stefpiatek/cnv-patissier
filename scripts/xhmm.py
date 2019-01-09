@@ -41,9 +41,9 @@ class XHMM(base_classes.BaseCNVTool):
         try:
             os.makedirs(f"{self.output_base}/{args[0]}")
         except FileExistsError:
-            print(f"*** Folder {args[0]} already exists ***")
+            base_classes.logger.info(f"Folder {args[0]} already exists")
 
-        print(f"*** Running  GATK step of XHMM: {args[0]} \n output: {args[-1]} ***")
+        base_classes.logger.info(f"Running  GATK step of XHMM: {args[0]} \n output: {args[-1]}")
         self.run_docker_subprocess(
             [
                 "java",
@@ -55,13 +55,13 @@ class XHMM(base_classes.BaseCNVTool):
                 *args,
             ]
         )
-        print(f"*** Completed  GATK step of XHMM: {args[0]} {args[-1]} ***")
+        base_classes.logger.info(f"Completed  GATK step of XHMM: {args[0]} {args[-1]}")
 
     def run_xhmm_command(self, args):
         """Runs xhmm command in docker"""
-        print(f"*** Running  XHMM: {args[0]} \n output: {args[-1]} ***")
+        base_classes.logger.info(f"Running  XHMM: {args[0]} \n output: {args[-1]}")
         self.run_docker_subprocess(["xhmm", *args])
-        print(f"*** Completed  XHMM: {args[0]} {args[-1]} ***")
+        base_classes.logger.info(f"Completed  XHMM: {args[0]} {args[-1]}")
 
     def run_workflow(self):
         os.makedirs(f"{self.output_base}")

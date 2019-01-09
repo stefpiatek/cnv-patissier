@@ -11,7 +11,6 @@ import os
 import toml
 
 from . import utils, base_classes
-from .base_classes import cnv_pat_dir
 
 
 class GATKBase(base_classes.BaseCNVTool):
@@ -32,9 +31,9 @@ class GATKBase(base_classes.BaseCNVTool):
         try:
             os.makedirs(f"{self.output_base}/{args[0]}")
         except FileExistsError:
-            print(f"*** Folder {args[0]} already exists ***")
+            base_classes.logger.info(f"Folder {args[0]} already exists")
 
-        print(f"*** Running  GATK: {args[0]} \n output: {args[-1]} ***")
+        base_classes.logger.info(f"Running  GATK: {args[0]} \n output: {args[-1]}")
         self.run_docker_subprocess(
             [
                 "java",
@@ -45,7 +44,7 @@ class GATKBase(base_classes.BaseCNVTool):
                 *args,
             ]
         )
-        print(f"*** Completed  GATK: {args[0]} {args[-1]} ***")
+        base_classes.logger.info(f"Completed  GATK: {args[0]} {args[-1]}")
 
 
 class GATKCase(GATKBase):
@@ -54,7 +53,7 @@ class GATKCase(GATKBase):
         self.run_type = "gatk_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
-        normal_path = f"{cnv_pat_dir}/successful-run-settings/{self.capture}/gatk_cohort/{self.gene}.toml"
+        normal_path = f"{base_classes.cnv_pat_dir}/successful-run-settings/{self.capture}/gatk_cohort/{self.gene}.toml"
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
         self.normal_path_base = f"/mnt/output/{self.capture}/{normal_config['start_time']}/gatk_cohort/{self.gene}"

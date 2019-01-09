@@ -6,13 +6,20 @@ import csv
 import glob
 import os
 import subprocess
+import sys
 
 import toml
+from loguru import logger
 
 from . import utils
 from settings import cnv_pat_settings
 
 cnv_pat_dir = utils.get_cnv_patissier_dir()
+# set up logger, replacing built in stderr and adding cnv-patissier log file
+logger.remove(0)
+logger.add(sys.stderr, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> {level} {message}")
+logger.add(f"{cnv_pat_dir}/logs/cnv-patissier.log", compression="gz")
+logger.add(f"{cnv_pat_dir}/logs/errors.log", level="ERROR", mode="w")
 
 
 class BaseCNVTool:
@@ -20,7 +27,6 @@ class BaseCNVTool:
         self.start_time = start_time
         self.capture = capture
         self.gene = gene
-        self.sample_suffix = ".sorted"
         self.gene_list = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
 
         sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
@@ -63,7 +69,7 @@ class BaseCNVTool:
         return (output_base, docker_output_base)
 
     def delete_unused_runs(self):
-        print(f"*** Removing any old or unsuccessful runs for {self.capture}, {self.run_type}, {self.gene}***")
+        logger.info(f"Removing any old or unsuccessful runs for {self.capture}, {self.run_type}, {self.gene}")
         subprocess.run(
             [
                 "docker",
@@ -130,8 +136,8 @@ class BaseCNVTool:
         ref_genome_dir = os.path.dirname(cnv_pat_settings["genome_fasta_path"])
         if not docker_image:
             docker_image = self.settings["docker_image"]
-
-        subprocess.run(
+        logger.info(f"Running {docker_image} with the following commands: {' '.join(args)}")
+        process = subprocess.run(
             [
                 "docker",
                 "run",
@@ -156,7 +162,7 @@ class BaseCNVTool:
     def run_required(self, previous_run_settings_path):
         """Returns True if workflow hasn't been run before or settings have changed since then"""
         if not os.path.exists(previous_run_settings_path):
-            print(f"*** Run required for {self.capture} {self.run_type} {self.gene} ***")
+            logger.info(f"Run required for {self.capture} {self.run_type} {self.gene}")
             self.delete_unused_runs()
             return True
         with open(previous_run_settings_path) as handle:
@@ -165,15 +171,16 @@ class BaseCNVTool:
             current_settings = dict(self.settings)
             current_settings.pop("start_time")
             if current_settings != previous_settings:
-                print(f"*** Run required for {self.capture} {self.run_type} {self.gene} ***")
+                logger.info(f"Run required for {self.capture} {self.run_type} {self.gene}")
                 self.delete_unused_runs()
                 return True
-        print(f"*** Re-run not required for {self.capture} {self.run_type} {self.gene} ***")
+        logger.info(f"Re-run not required for {self.capture} {self.run_type} {self.gene}")
 
     def run_workflow(self):
         """Placeholder for individual tool running"""
         pass
 
+    @logger.catch(reraise=True)
     def main(self):
         previous_run_settings_path = (
             f"{cnv_pat_dir}/successful-run-settings/{self.capture}/{self.run_type}/{self.gene}.toml"
@@ -189,7 +196,7 @@ class BaseCNVTool:
         try:
             os.makedirs(output_dir)
         except FileExistsError:
-            print(f"*** run config directory exists for {self.capture}/{self.run_type} ***")
+            logger.info(f"run config directory exists for {self.capture}/{self.run_type}")
         output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)

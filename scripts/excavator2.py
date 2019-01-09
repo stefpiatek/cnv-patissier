@@ -7,7 +7,6 @@ import os
 import subprocess
 
 from . import utils, base_classes
-from .base_classes import cnv_pat_dir
 
 
 class Excavator2(base_classes.BaseCNVTool):
@@ -34,17 +33,17 @@ class Excavator2(base_classes.BaseCNVTool):
         try:
             os.makedirs(f"{self.output_base}/")
         except FileExistsError:
-            print(f"*** Excavator2 output folder already exists ***")
+            base_classes.logger.info(f"Excavator2 output folder already exists")
         prepared_bed_file = f"{self.output_base}/capture.bed"
         extra_chroms_bed = f"{self.output_base}/capture_with_mock.bed"
         docker_extra_chroms_bed = f"{self.output_base}/capture_with_mock.bed"
         chromosomes = [f"chr{chrom}" for chrom in list(range(1, 23)) + ["X"]]
         with open(extra_chroms_bed, "w") as bed_output:
             for index, chromosome in enumerate(chromosomes):
-                with open(self.settings["capture_path"].replace("/mnt", cnv_pat_dir), "r") as bed_input:
+                with open(self.settings["capture_path"].replace("/mnt", base_classes.cnv_pat_dir), "r") as bed_input:
                     if not any([line.startswith(chromosome) for line in bed_input]):
                         bed_output.write("\t".join([chromosome, "10000", "10010", "dummy\n"]))
-            with open(self.settings["capture_path"].replace("/mnt", cnv_pat_dir), "r") as bed_input:
+            with open(self.settings["capture_path"].replace("/mnt", base_classes.cnv_pat_dir), "r") as bed_input:
                 for line in bed_input:
                     bed_output.write(f"{line}")
 
