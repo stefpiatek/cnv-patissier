@@ -4,6 +4,7 @@ https://cnvkit.readthedocs.io/en/stable/germline.html
 
 
 """
+import csv
 import subprocess
 import os
 
@@ -25,6 +26,29 @@ class CNVKit(base_classes.BaseCNVTool):
 
         self.settings = {**self.settings, "docker_image": "etal/cnvkit:0.9.5", "unknown_bams": docker_bams}
         self.settings["normal_bams"] = self.settings.pop("bams")
+
+    def parse_output_file(self, file_path, sample_id):
+        cnvs = []
+        with open(file_path, "r") as handle:
+            output = csv.DictReader(handle, delimiter="\t")
+            for row in output:
+                if row:
+                    cnv = dict(row)
+                    cnv["chrom"] = cnv.pop("chromosome")
+                    cnv.pop("gene")
+                    cnv["sample_id"] = sample_id
+                    cnv["cn"] = int(cnv["cn"])
+                    if cnv["cn"] < 2:
+                        cnv["alt"] = "DEL"
+                    elif cnv["cn"] > 2:
+                        cnv["alt"] = "DUP"
+                    else:
+                        # skip as has a copy number of 2
+                        continue
+                    for field in ["probes", "cn"]:
+                        cnv.pop(field)
+                    cnvs.append(cnv)
+        return cnvs
 
     def run_cnvkit_command(self, args, stdout=None):
         """Create dir for output and runs a CNV-tool command in docker"""

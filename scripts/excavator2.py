@@ -29,6 +29,11 @@ class Excavator2(base_classes.BaseCNVTool):
         }
         self.settings["normal_bams"] = self.settings.pop("bams")
 
+    def parse_output_file(self, file_path, sample_id):
+        with open(file_path) as handle:
+            cnvs = self.parse_vcf_4_2(handle, sample_id)
+        return cnvs
+
     def run_workflow(self):
         try:
             os.makedirs(f"{self.output_base}/")

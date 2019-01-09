@@ -27,6 +27,28 @@ class Copywriter(base_classes.BaseCNVTool):
         self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0", "unknown_bams": docker_bams}
         self.settings["normal_bams"] = self.settings.pop("bams")
 
+    def parse_output_file(self, file_path, sample_id):
+        cnvs = []
+        with open(file_path, "r") as handle:
+            output = csv.DictReader(handle, delimiter="\t")
+            for row in output:
+                if row:
+                    cnv = dict(row)
+                    cnv["chrom"] = cnv.pop("chromosome")
+                    cnv["gene"] = self.gene
+                    cnv["capture"] = self.capture
+                    cnv["sample_id"] = sample_id
+                    if cnv["cn"] < "2":
+                        cnv["alt"] = "DEL"
+                    elif cnv["cn"] > "2":
+                        cnv["alt"] = "DUP"
+                    else:
+                        raise Exception(f"non-deletion or duplication called cnvkit:\n {cnv}")
+                    for field in ["start.p", "end.p", "type"]:
+                        cnv.pop(field)
+                    cnvs.append(cnv)
+        return cnvs
+
     def run_command(self, args):
         self.run_docker_subprocess(["Rscript", f"/mnt/cnv-caller-resources/copywriter/copywriter_runner.R", *args])
 

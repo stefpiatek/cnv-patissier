@@ -17,9 +17,15 @@ from settings import cnv_pat_settings
 cnv_pat_dir = utils.get_cnv_patissier_dir()
 # set up logger, replacing built in stderr and adding cnv-patissier log file
 logger.remove(0)
-logger.add(sys.stderr, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> {level} {message}")
-logger.add(f"{cnv_pat_dir}/logs/cnv-patissier.log", compression="gz")
-logger.add(f"{cnv_pat_dir}/logs/errors.log", level="ERROR", mode="w")
+logger.add(
+    sys.stderr,
+    colorize=True,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> <level>{level}</level> {message}",
+    level="DEBUG",
+)
+docker_level = logger.level("DOCKER", no=15, color="<yellow>")
+logger.add(f"{cnv_pat_dir}/logs/cnv-patissier.log")
+logger.add(f"{cnv_pat_dir}/logs/error.log", level="ERROR", mode="w")
 
 
 class BaseCNVTool:
@@ -88,6 +94,31 @@ class BaseCNVTool:
             ]
         )
 
+    def filter_capture(self):
+        capture_path = f"{cnv_pat_dir}/{self.settings['capture_path'][5:]}"
+        gene_bed = []
+        with open(capture_path, "r") as capture:
+            for line in capture:
+                name = line.split()[3]
+                if name == self.gene:
+                    gene_bed.append(line)
+        return gene_bed
+
+    def filter_cnvs(self, cnvs, gene_bed):
+        filtered_cnvs = []
+        for cnv in cnvs:
+            for line in gene_bed:
+                chrom, start, end, *_ = line.split()
+                start, end = int(start), int(end)
+                cnv_start, cnv_end = int(cnv['start']), int(cnv['end'])
+                if cnv["chrom"] == chrom:
+                    within_region = (start <= cnv_start <= end) or (start <= cnv_end <= end)
+                    spanning_region = (cnv_start <= start) and (cnv_end >= end)
+                    if within_region or spanning_region:
+                        filtered_cnvs.append(cnv)
+                        break
+        return filtered_cnvs
+
     def get_normal_panel_time(self):
         normal_path = (
             f"{cnv_pat_dir}/successful-run-settings/{self.capture}/"
@@ -97,67 +128,68 @@ class BaseCNVTool:
             normal_config = toml.load(handle)
         return f"{normal_config['start_time']}"
 
+    def parse_output_file(file_path, sample_id=None):
+        """Dummy method to be overwritten by each CNV-caller class"""
+        pass
+
     @staticmethod
-    def parse_vcf_4_2(vcf_path):
+    def parse_vcf_4_2(input_vcf, sample_id):
         """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
         cnvs = []
-        output_path = vcf_path.split("output/")[-1]
-        capture, time_start, cnv_caller, gene, *args = output_path.split("/")
-        sample_id = args[-1].replace(".vcf", "").replace("_segments", "").replace("_intervals", "")
-        with open(vcf_path) as handle:
-            for line in handle:
-                if line.startswith("#"):
-                    continue
+        for line in input_vcf:
+            if line.startswith("#") or not line:
+                continue
+            fields = ["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info", "format", "data"]
+            row = {field: data for (field, data) in zip(fields, line.split())}
 
-                fields = ["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info", "format", "data"]
-                row = {field: data for (field, data) in zip(fields, line.split())}
-
-                call_data = {key: value for (key, value) in zip(row["format"].split(":"), row["data"].split(":"))}
-                if call_data["GT"] != "0":
-                    row["start"] = row.pop("pos")
-                    if call_data["GT"] == "1":
-                        row["alt"] = "DEL"
-                    elif call_data["GT"] == "2":
-                        row["alt"] = "DUP"
-                    cnv = {
-                        **row,
-                        "end": row["info"].replace("END=", ""),
-                        "cnv_caller": cnv_caller,
-                        "gene": gene,
-                        "sample_id": sample_id,
-                        "capture": capture,
-                    }
-
-                    cnvs.append(cnv)
+            call_data = {key: value for (key, value) in zip(row["format"].split(":"), row["data"].split(":"))}
+            genotype = call_data["GT"].split("/")[0]
+            if genotype != "0":
+                row["start"] = row.pop("pos")
+                if genotype == "1":
+                    row["alt"] = "DEL"
+                elif genotype == "2":
+                    row["alt"] = "DUP"
+                for field in row["info"].split(";"):
+                    if field.startswith("END="):
+                        end = field.replace("END=", "")
+                        break
+                cnv = {**row, "end": end, "sample_id": sample_id}
+                cnvs.append(cnv)
         return cnvs
+
+    @logger.catch(reraise=True)  # TODO: remove decorator once in production
+    def process_caller_output(self, vcf_path, sample_id=None):
+        cnvs = self.parse_output_file(vcf_path, sample_id)
+        gene_bed = self.filter_capture()
+        filtered_cnvs = self.filter_cnvs(cnvs, gene_bed)
+        logger.debug(f"{self.run_type}\n {filtered_cnvs}\n\n")
 
     def run_docker_subprocess(self, args, stdout=None, docker_image=None, docker_genome="/mnt/ref_genome/"):
         """Run docker subprocess as root user, mounting input and reference genome dir"""
         ref_genome_dir = os.path.dirname(cnv_pat_settings["genome_fasta_path"])
         if not docker_image:
             docker_image = self.settings["docker_image"]
-        logger.info(f"Running {docker_image} with the following commands: {' '.join(args)}")
-        process = subprocess.run(
-            [
-                "docker",
-                "run",
-                "--rm",
-                "-v",
-                f"{ref_genome_dir}/:{docker_genome}:ro",
-                "-v",
-                f"{cnv_pat_dir}/input:/mnt/input/:ro",
-                "-v",
-                f"{self.bam_mount}:/mnt/bam-input/:ro",
-                "-v",
-                f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
-                "-v",
-                f"{cnv_pat_dir}/output/:/mnt/output/:rw",
-                docker_image,
-                *args,
-            ],
-            check=True,
-            stdout=stdout,
-        )
+        docker_command = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{ref_genome_dir}/:{docker_genome}:ro",
+            "-v",
+            f"{cnv_pat_dir}/input:/mnt/input/:ro",
+            "-v",
+            f"{self.bam_mount}:/mnt/bam-input/:ro",
+            "-v",
+            f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
+            "-v",
+            f"{cnv_pat_dir}/output/:/mnt/output/:rw",
+            docker_image,
+            *args,
+        ]
+        logger.log("DOCKER", " ".join(docker_command))
+        process = subprocess.run(docker_command, check=True, stdout=stdout)
+        return process
 
     def run_required(self, previous_run_settings_path):
         """Returns True if workflow hasn't been run before or settings have changed since then"""

@@ -66,4 +66,4 @@ cnv_table <- cnv_calls@CNV.calls
 cnv_table$chrom <- cnv_table$chromosome
 
 cnv_call_path <- paste(opt$out_base, ".txt", sep = "")
-write.table(cnv_calls@CNV.calls, file = cnv_call_path, sep= "\t", row.names = FALSE)
+write.table(cnv_calls@CNV.calls, file = cnv_call_path, sep= "\t", row.names = FALSE, quote = FALSE)
