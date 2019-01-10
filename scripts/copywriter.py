@@ -9,6 +9,7 @@ Note: only has paired sample mode, so normal samples are just randomly paired wi
 import csv
 import subprocess
 import os
+import pathlib
 
 from . import utils, base_classes
 
@@ -31,20 +32,24 @@ class Copywriter(base_classes.BaseCNVTool):
         cnvs = []
         with open(file_path, "r") as handle:
             output = csv.DictReader(handle, delimiter="\t")
+            sample_to_bam = {sample: bam for (bam, sample) in self.bam_to_sample.items()}
+            bam_name = pathlib.Path(sample_to_bam[sample_id]).name
+            bamfile_to_sample = {pathlib.Path(bam_path).name: sample for bam_path, sample in self.bam_to_sample.items()}
             for row in output:
-                if row:
+                if row['unknown'] == bam_name:
                     cnv = dict(row)
-                    cnv["chrom"] = cnv.pop("chromosome")
-                    cnv["gene"] = self.gene
-                    cnv["capture"] = self.capture
+                    cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv['chrom']}"
                     cnv["sample_id"] = sample_id
-                    if cnv["cn"] < "2":
+                    cnv["control_id"] = bamfile_to_sample[cnv.pop('control')]
+                    cnv["seg.mean"] = float(cnv["seg.mean"])
+                    # TODO: set this threshold using ROC curve
+                    if cnv["seg.mean"] <= -1.3:
                         cnv["alt"] = "DEL"
-                    elif cnv["cn"] > "2":
+                    elif cnv["seg.mean"] >= 1.3:
                         cnv["alt"] = "DUP"
                     else:
-                        raise Exception(f"non-deletion or duplication called cnvkit:\n {cnv}")
-                    for field in ["start.p", "end.p", "type"]:
+                        continue
+                    for field in ["num.mark", "unknown"]:
                         cnv.pop(field)
                     cnvs.append(cnv)
         return cnvs
