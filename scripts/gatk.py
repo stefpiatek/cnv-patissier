@@ -52,6 +52,7 @@ class GATKCase(GATKBase):
         super().__init__(capture, gene, start_time, normal_panel=False)
         self.run_type = "gatk_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
+        self.extra_db_fields = ["format_data", "info_data", "id", "ref", "qual", "filter"]
 
         normal_path = f"{base_classes.cnv_pat_dir}/successful-run-settings/{self.capture}/gatk_cohort/{self.gene}.toml"
         with open(normal_path) as handle:

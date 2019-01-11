@@ -63,6 +63,16 @@ class ExomeDepthCohort(ExomeDepthBase):
 class ExomeDepthCase(ExomeDepthBase):
     def __init__(self, capture, gene, start_time):
         super().__init__(capture, gene, start_time, normal_panel=False)
+        self.extra_db_fields = [
+            "nexons",
+            "id",
+            "BF",
+            "reads.expected",
+            "reads.observed",
+            "reads.ratio",
+            "start.p",
+            "end.p",
+        ]
         self.run_type = "exome-depth_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
@@ -82,14 +92,13 @@ class ExomeDepthCase(ExomeDepthBase):
                     cnv = dict(row)
                     cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv.pop('chromosome')}"
                     cnv["sample_id"] = sample_id
-                    if cnv["type"] == "deletion":
+                    call = cnv.pop("type")
+                    if call == "deletion":
                         cnv["alt"] = "DEL"
-                    elif cnv["type"] == "duplication":
+                    elif call == "duplication":
                         cnv["alt"] = "DUP"
                     else:
                         raise Exception(f"non-deletion or duplication called in Exome depth:\n {cnv}")
-                    for field in ["start.p", "end.p", "type"]:
-                        cnv.pop(field)
                     cnvs.append(cnv)
         return cnvs
 

@@ -12,6 +12,7 @@ from . import utils, base_classes
 class Excavator2(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
         super().__init__(capture, gene, start_time, normal_panel)
+        self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
 
         self.run_type = "excavator2"
 

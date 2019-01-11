@@ -32,6 +32,7 @@ class BaseCNVTool:
     def __init__(self, capture, gene, start_time, normal_panel=True):
         self.start_time = start_time
         self.capture = capture
+        self.extra_db_fields = []
         self.gene = gene
         self.gene_list = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
 
@@ -110,11 +111,12 @@ class BaseCNVTool:
             for line in gene_bed:
                 chrom, start, end, *_ = line.split()
                 start, end = int(start), int(end)
-                cnv_start, cnv_end = int(cnv['start']), int(cnv['end'])
+                cnv_start, cnv_end = int(cnv["start"]), int(cnv["end"])
                 if cnv["chrom"] == chrom:
                     within_region = (start <= cnv_start <= end) or (start <= cnv_end <= end)
                     spanning_region = (cnv_start <= start) and (cnv_end >= end)
                     if within_region or spanning_region:
+                        cnv["json_data"] = {field: cnv.pop(field) for field in self.extra_db_fields if field}
                         filtered_cnvs.append(cnv)
                         break
         return filtered_cnvs
@@ -141,20 +143,28 @@ class BaseCNVTool:
                 continue
             fields = ["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info", "format", "data"]
             row = {field: data for (field, data) in zip(fields, line.split())}
-
-            call_data = {key: value for (key, value) in zip(row["format"].split(":"), row["data"].split(":"))}
-            genotype = call_data["GT"].split("/")[0]
+            format_data = {key: value for (key, value) in zip(row.pop("format").split(":"), row.pop("data").split(":"))}
+            info_data = {}
+            for info_field in row.pop("info").split(";"):
+                try:
+                    field, value = info_field.split("=")
+                except ValueError as e:
+                    if info_field and info_field != "IMPRECISE":
+                        raise e
+                    elif info_field:
+                        field, value = ["calling", "IMPRECISE"]
+                    else:
+                        field, value = ["empty", "empty"]
+                info_data[field] = value
+            genotype = format_data["GT"].split("/")[0]
             if genotype != "0":
                 row["start"] = row.pop("pos")
                 if genotype == "1":
                     row["alt"] = "DEL"
                 elif genotype == "2":
                     row["alt"] = "DUP"
-                for field in row["info"].split(";"):
-                    if field.startswith("END="):
-                        end = field.replace("END=", "")
-                        break
-                cnv = {**row, "end": end, "sample_id": sample_id}
+                end = info_data["END"]
+                cnv = {**row, "end": end, "sample_id": sample_id, "format_data": format_data, "info_data": info_data}
                 cnvs.append(cnv)
         return cnvs
 
@@ -163,7 +173,8 @@ class BaseCNVTool:
         cnvs = self.parse_output_file(vcf_path, sample_id)
         gene_bed = self.filter_capture()
         filtered_cnvs = self.filter_cnvs(cnvs, gene_bed)
-        logger.debug(f"{self.run_type}\n {filtered_cnvs}\n\n")
+        if filtered_cnvs:
+            logger.debug(f"{self.run_type}\n {filtered_cnvs}\n\n")
 
     def run_docker_subprocess(self, args, stdout=None, docker_image=None, docker_genome="/mnt/ref_genome/"):
         """Run docker subprocess as root user, mounting input and reference genome dir"""

@@ -17,6 +17,7 @@ class CNVKit(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time):
         super().__init__(capture, gene, start_time, normal_panel=True)
         self.run_type = "cnvkit"
+        self.extra_db_fields = ["probes", "cn", "log2", "depth", "weight", ""]
 
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
@@ -45,8 +46,6 @@ class CNVKit(base_classes.BaseCNVTool):
                     else:
                         # skip as has a copy number of 2
                         continue
-                    for field in ["probes", "cn"]:
-                        cnv.pop(field)
                     cnvs.append(cnv)
         return cnvs
 

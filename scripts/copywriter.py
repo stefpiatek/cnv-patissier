@@ -17,6 +17,7 @@ from . import utils, base_classes
 class Copywriter(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
         super().__init__(capture, gene, start_time, normal_panel)
+        self.extra_db_fields = ["num.mark", "unknown", "seg.mean", "control_id"]
         self.run_type = "copywriter"
 
         self.output_base, self.docker_output_base = self.base_output_dirs()
@@ -36,11 +37,11 @@ class Copywriter(base_classes.BaseCNVTool):
             bam_name = pathlib.Path(sample_to_bam[sample_id]).name
             bamfile_to_sample = {pathlib.Path(bam_path).name: sample for bam_path, sample in self.bam_to_sample.items()}
             for row in output:
-                if row['unknown'] == bam_name:
+                if row["unknown"] == bam_name:
                     cnv = dict(row)
                     cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv['chrom']}"
                     cnv["sample_id"] = sample_id
-                    cnv["control_id"] = bamfile_to_sample[cnv.pop('control')]
+                    cnv["control_id"] = bamfile_to_sample[cnv.pop("control")]
                     cnv["seg.mean"] = float(cnv["seg.mean"])
                     # TODO: set this threshold using ROC curve
                     if cnv["seg.mean"] <= -1.3:
@@ -49,8 +50,6 @@ class Copywriter(base_classes.BaseCNVTool):
                         cnv["alt"] = "DUP"
                     else:
                         continue
-                    for field in ["num.mark", "unknown"]:
-                        cnv.pop(field)
                     cnvs.append(cnv)
         return cnvs
 
