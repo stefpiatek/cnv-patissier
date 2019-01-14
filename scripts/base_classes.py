@@ -45,6 +45,7 @@ class BaseCNVTool:
         self.bam_to_sample = {
             f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id for (bam, sample_id) in bam_to_sample.items()
         }
+        self.sample_to_bam = {sample_id: bam for (bam, sample_id) in self.bam_to_sample.items()}
 
         with open(self.gene_list) as handle:
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
@@ -58,8 +59,6 @@ class BaseCNVTool:
             "bams": docker_bams,
             "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
             "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
-            "max_cpu": cnv_pat_settings["max_cpu"],
-            "max_mem": cnv_pat_settings["max_mem"],
             "docker_image": None,
             "chromosome_prefix": "chr",
             "capture": self.capture,
@@ -120,6 +119,14 @@ class BaseCNVTool:
                         filtered_cnvs.append(cnv)
                         break
         return filtered_cnvs
+
+    def get_bam_header(self, sample_id):
+        docker_bam = self.sample_to_bam[sample_id]
+        samtools = self.run_docker_subprocess(
+            ["samtools", "view", "-H", docker_bam], docker_image="stefpiatek/samtools:1.9", stdout=subprocess.PIPE
+        )
+        header = str(samtools.stdout, "utf-8")
+        return header
 
     def get_normal_panel_time(self):
         normal_path = (
