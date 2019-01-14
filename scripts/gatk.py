@@ -37,8 +37,8 @@ class GATKBase(base_classes.BaseCNVTool):
         self.run_docker_subprocess(
             [
                 "java",
-                f"-Xmx{self.settings['max_mem']}g",
-                f"-XX:ConcGCThreads={self.settings['max_cpu']}",
+                f"-Xmx{self.max_mem}g",
+                f"-XX:ConcGCThreads={self.max_cpu}",
                 "-jar",
                 "gatk.jar",
                 *args,

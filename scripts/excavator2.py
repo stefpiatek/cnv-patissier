@@ -96,8 +96,8 @@ class Excavator2(base_classes.BaseCNVTool):
                 "--output-base",
                 self.docker_output_base,
                 "--max-mem",
-                self.settings["max_mem"],
+                self.max_mem,
                 "--max-cpu",
-                self.settings["max_cpu"],
+                self.max_cpu,
             ]
         )

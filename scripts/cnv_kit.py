@@ -76,7 +76,7 @@ class CNVKit(base_classes.BaseCNVTool):
                 "--output-dir",
                 f"{self.docker_output_base}/batch-results/",
                 "-p",
-                f"{self.settings['max_cpu']}",
+                f"{self.max_cpu}",
             ]
         )
 
