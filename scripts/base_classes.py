@@ -11,8 +11,9 @@ import sys
 import toml
 from loguru import logger
 
-from . import utils
+from scripts import utils, models
 from settings import cnv_pat_settings
+from scripts.db_session import DbSession
 
 cnv_pat_dir = utils.get_cnv_patissier_dir()
 # set up logger, replacing built in stderr and adding cnv-patissier log file
@@ -30,14 +31,17 @@ logger.add(f"{cnv_pat_dir}/logs/error.log", level="ERROR", mode="w")
 
 class BaseCNVTool:
     def __init__(self, capture, gene, start_time, normal_panel=True):
+        self.session = DbSession.factory()
         self.start_time = start_time
         self.capture = capture
         self.extra_db_fields = []
         self.gene = gene
-        self.gene_list = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
+        self.max_cpu = cnv_pat_settings["max_cpu"]
+        self.max_mem = cnv_pat_settings["max_mem"]
+        self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
 
-        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=normal_panel)
-        bam_to_sample = utils.SampleUtils.get_bam_to_id(self.gene_list)
+        sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=normal_panel)
+        bam_to_sample = utils.SampleUtils.get_bam_to_id(self.sample_sheet)
 
         self.bam_mount = utils.SampleUtils.get_mount_point(bams)
 

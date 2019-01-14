@@ -1,20 +1,13 @@
-from sqlalchemy import create_engine, ForeignKey, Column, Date, Integer, String, UniqueConstraint, Text, Time, sql
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import ForeignKey, Column, Date, Integer, String, UniqueConstraint, Text, Time, sql
+from sqlalchemy.orm import relationship
 
-from . import base_classes, utils
-
-cnv_pat_dir = utils.get_cnv_patissier_dir()
+from .db_session import Base
 
 # set up models
-Base = declarative_base()
-
-
 class CalledCNV(Base):
     __tablename__ = "called_cnvs"
     id = Column(Integer, primary_key=True)
     caller_id = Column(Integer, ForeignKey("callers.id", ondelete="CASCADE"), nullable=False)
-    capture = Column(String)
     cnv_id = Column(Integer, ForeignKey("cnvs.id", ondelete="CASCADE"), nullable=False)
     gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
     json_data = Column(Text)
@@ -105,7 +98,7 @@ class Sample(Base):
     __tablename__ = "samples"
     id = Column(Integer, primary_key=True)
     bam_header = Column(Text)
-    genome_build = Column(String)
+    gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
     name = Column(String)
     path = Column(Text)
     result_type = Column(String)
@@ -114,7 +107,7 @@ class Sample(Base):
         return f"{self.name}"
 
 
-def get_or_create(model, defaults=None, **kwargs):  # could add session in arguments?
+def get_or_create(model, session, defaults=None, **kwargs):
     params = {k: v for k, v in kwargs.items() if not isinstance(v, sql.ClauseElement)}
     params.update(defaults or {})
     instance = session.query(model).filter_by(**params).first()
@@ -126,7 +119,7 @@ def get_or_create(model, defaults=None, **kwargs):  # could add session in argum
         return instance, True
 
 
-def update_or_create(model, defaults=None, **kwargs):
+def update_or_create(model, session, defaults=None, **kwargs):
     params = {k: v for k, v in kwargs.items() if not isinstance(v, sql.ClauseElement)}
     params.update(defaults or {})
     query = session.query(model).filter_by(**defaults)
@@ -138,11 +131,3 @@ def update_or_create(model, defaults=None, **kwargs):
         instance = model(**params)
         session.add(instance)
         return instance, True
-
-
-# setup db and session
-engine = create_engine(f"sqlite:///{cnv_pat_dir}/output/results.db")
-Base.metadata.create_all(engine)
-Session = sessionmaker()
-Session.configure(bind=engine)
-session = Session()
