@@ -32,11 +32,7 @@ class Canvas(base_classes.BaseCNVTool):
         self.bam_mount = utils.SampleUtils.get_mount_point(bams)
         docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
 
-        self.settings = {
-            **self.settings,
-            "docker_image": "stefpiatek/canvas:1.11.0",
-            "unknown_bams": docker_bams,
-        }
+        self.settings = {**self.settings, "docker_image": "stefpiatek/canvas:1.11.0", "unknown_bams": docker_bams}
         self.settings["normal_bams"] = self.settings.pop("bams")
 
     def run_canvas_command(self, args):

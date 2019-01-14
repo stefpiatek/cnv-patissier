@@ -9,6 +9,7 @@ Note: only has paired sample mode, so normal samples are just randomly paired wi
 import csv
 import subprocess
 import os
+import pathlib
 
 from . import utils, base_classes
 
@@ -16,6 +17,7 @@ from . import utils, base_classes
 class Copywriter(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
         super().__init__(capture, gene, start_time, normal_panel)
+        self.extra_db_fields = ["num.mark", "unknown", "seg.mean", "control_id"]
         self.run_type = "copywriter"
 
         self.output_base, self.docker_output_base = self.base_output_dirs()
@@ -26,6 +28,30 @@ class Copywriter(base_classes.BaseCNVTool):
 
         self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0", "unknown_bams": docker_bams}
         self.settings["normal_bams"] = self.settings.pop("bams")
+
+    def parse_output_file(self, file_path, sample_id):
+        cnvs = []
+        with open(file_path, "r") as handle:
+            output = csv.DictReader(handle, delimiter="\t")
+            sample_to_bam = {sample: bam for (bam, sample) in self.bam_to_sample.items()}
+            bam_name = pathlib.Path(sample_to_bam[sample_id]).name
+            bamfile_to_sample = {pathlib.Path(bam_path).name: sample for bam_path, sample in self.bam_to_sample.items()}
+            for row in output:
+                if row["unknown"] == bam_name:
+                    cnv = dict(row)
+                    cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv['chrom']}"
+                    cnv["sample_id"] = sample_id
+                    cnv["control_id"] = bamfile_to_sample[cnv.pop("control")]
+                    cnv["seg.mean"] = float(cnv["seg.mean"])
+                    # TODO: set this threshold using ROC curve
+                    if cnv["seg.mean"] <= -1.3:
+                        cnv["alt"] = "DEL"
+                    elif cnv["seg.mean"] >= 1.3:
+                        cnv["alt"] = "DUP"
+                    else:
+                        continue
+                    cnvs.append(cnv)
+        return cnvs
 
     def run_command(self, args):
         self.run_docker_subprocess(["Rscript", f"/mnt/cnv-caller-resources/copywriter/copywriter_runner.R", *args])

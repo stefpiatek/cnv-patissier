@@ -12,6 +12,7 @@ from . import utils, base_classes
 class Excavator2(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
         super().__init__(capture, gene, start_time, normal_panel)
+        self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
 
         self.run_type = "excavator2"
 
@@ -28,6 +29,11 @@ class Excavator2(base_classes.BaseCNVTool):
             "unknown_bams": docker_bams,
         }
         self.settings["normal_bams"] = self.settings.pop("bams")
+
+    def parse_output_file(self, file_path, sample_id):
+        with open(file_path) as handle:
+            cnvs = self.parse_vcf_4_2(handle, sample_id)
+        return cnvs
 
     def run_workflow(self):
         try:

@@ -63,6 +63,16 @@ class ExomeDepthCohort(ExomeDepthBase):
 class ExomeDepthCase(ExomeDepthBase):
     def __init__(self, capture, gene, start_time):
         super().__init__(capture, gene, start_time, normal_panel=False)
+        self.extra_db_fields = [
+            "nexons",
+            "id",
+            "BF",
+            "reads.expected",
+            "reads.observed",
+            "reads.ratio",
+            "start.p",
+            "end.p",
+        ]
         self.run_type = "exome-depth_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
@@ -72,6 +82,25 @@ class ExomeDepthCase(ExomeDepthBase):
         )
 
         self.settings = {**self.settings, "normal_panel_start_time": normal_panel_start}
+
+    def parse_output_file(self, file_path, sample_id):
+        cnvs = []
+        with open(file_path, "r") as handle:
+            output = csv.DictReader(handle, delimiter="\t")
+            for row in output:
+                if row:
+                    cnv = dict(row)
+                    cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv.pop('chromosome')}"
+                    cnv["sample_id"] = sample_id
+                    call = cnv.pop("type")
+                    if call == "deletion":
+                        cnv["alt"] = "DEL"
+                    elif call == "duplication":
+                        cnv["alt"] = "DUP"
+                    else:
+                        raise Exception(f"non-deletion or duplication called in Exome depth:\n {cnv}")
+                    cnvs.append(cnv)
+        return cnvs
 
     def run_workflow(self):
         # write bam locations to file to be read by R script

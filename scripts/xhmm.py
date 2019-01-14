@@ -19,6 +19,7 @@ from . import utils, base_classes
 class XHMM(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
         super().__init__(capture, gene, start_time, normal_panel)
+        self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
 
         self.run_type = "xhmm"
 
@@ -56,6 +57,26 @@ class XHMM(base_classes.BaseCNVTool):
             ]
         )
         base_classes.logger.info(f"Completed  GATK step of XHMM: {args[0]} {args[-1]}")
+
+    def parse_output_file(self, file_path, sample_id):
+        docker_file_path = file_path.replace(base_classes.cnv_pat_dir, "/mnt")
+
+        if not os.path.exists(f"{file_path}.gz.tbi"):
+            self.run_docker_subprocess(["bgzip", docker_file_path], docker_image="lethalfang/tabix:1.7")
+            self.run_docker_subprocess(
+                ["tabix", "-p", "vcf", f"{docker_file_path}.gz"], docker_image="lethalfang/tabix:1.7"
+            )
+
+        sample_vcf = self.run_docker_subprocess(
+            ["bcftools", "view", "-c1", "-Ov", "-s", sample_id, f"{docker_file_path}.gz"],
+            docker_image="halllab/bcftools:v1.9",
+            stdout=subprocess.PIPE,
+        )
+
+        vcf_data = str(sample_vcf.stdout, "utf-8").split("\n")
+        cnvs = self.parse_vcf_4_2(vcf_data, sample_id)
+
+        return cnvs
 
     def run_xhmm_command(self, args):
         """Runs xhmm command in docker"""
