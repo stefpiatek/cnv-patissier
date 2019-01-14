@@ -28,7 +28,7 @@ class Canvas(base_classes.BaseCNVTool):
 
         self.run_type = "canvas"
 
-        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=False)
+        sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
         self.bam_mount = utils.SampleUtils.get_mount_point(bams)
         docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
 

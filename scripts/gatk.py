@@ -35,14 +35,7 @@ class GATKBase(base_classes.BaseCNVTool):
 
         base_classes.logger.info(f"Running  GATK: {args[0]} \n output: {args[-1]}")
         self.run_docker_subprocess(
-            [
-                "java",
-                f"-Xmx{self.max_mem}g",
-                f"-XX:ConcGCThreads={self.max_cpu}",
-                "-jar",
-                "gatk.jar",
-                *args,
-            ]
+            ["java", f"-Xmx{self.max_mem}g", f"-XX:ConcGCThreads={self.max_cpu}", "-jar", "gatk.jar", *args]
         )
         base_classes.logger.info(f"Completed  GATK: {args[0]} {args[-1]}")
 
