@@ -4,10 +4,12 @@ Base class for running of a CNV tool - each tool inherits from this class
 
 import csv
 import glob
+import json
 import os
 import subprocess
 import sys
 
+from sqlalchemy import sql
 import toml
 from loguru import logger
 
@@ -30,46 +32,50 @@ logger.add(f"{cnv_pat_dir}/logs/error.log", level="ERROR", mode="w")
 
 
 class BaseCNVTool:
-    def __init__(self, capture, gene, start_time, normal_panel=True):
+    def __init__(self, capture, gene, start_time, normal_panel=True, testing=False):
+        if not testing:
+            self.max_cpu = cnv_pat_settings["max_cpu"]
+            self.max_mem = cnv_pat_settings["max_mem"]
+            self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
+
+            sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=normal_panel)
+            bam_to_sample = utils.SampleUtils.get_bam_to_id(self.sample_sheet)
+
+            self.bam_mount = utils.SampleUtils.get_mount_point(bams)
+
+            docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
+            self.bam_to_sample = {
+                f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id
+                for (bam, sample_id) in bam_to_sample.items()
+            }
+            self.sample_to_bam = {sample_id: bam for (bam, sample_id) in self.bam_to_sample.items()}
+
+            with open(self.sample_sheet) as handle:
+                sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
+                capture_file = set(f"{row['capture_name']}.bed" for row in sample_sheet)
+                assert len(capture_file) == 1, (
+                    "Single capture file should be used for all samples within a sample sheet"
+                    f"Gene {gene} has multiple captures for its samples, please fix this and run again "
+                )
+
+            self.settings = {
+                "bams": docker_bams,
+                "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
+                "genome_build_name": cnv_pat_settings["genome_build_name"],
+                "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
+                "docker_image": None,
+                "chromosome_prefix": "chr",
+                "capture": self.capture,
+                "gene": self.gene,
+                "start_time": start_time,
+                "capture_path": f"/mnt/input/{capture}/bed/{capture_file.pop()}",
+            }
+
         self.session = DbSession.factory()
         self.start_time = start_time
         self.capture = capture
         self.extra_db_fields = []
         self.gene = gene
-        self.max_cpu = cnv_pat_settings["max_cpu"]
-        self.max_mem = cnv_pat_settings["max_mem"]
-        self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
-
-        sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=normal_panel)
-        bam_to_sample = utils.SampleUtils.get_bam_to_id(self.sample_sheet)
-
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-        self.bam_to_sample = {
-            f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id for (bam, sample_id) in bam_to_sample.items()
-        }
-        self.sample_to_bam = {sample_id: bam for (bam, sample_id) in self.bam_to_sample.items()}
-
-        with open(self.gene_list) as handle:
-            sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
-            capture_file = set(f"{row['capture_name']}.bed" for row in sample_sheet)
-            assert len(capture_file) == 1, (
-                "Single capture file should be used for all samples within a sample sheet"
-                f"Gene {gene} has multiple captures for its samples, please fix this and run again "
-            )
-
-        self.settings = {
-            "bams": docker_bams,
-            "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
-            "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
-            "docker_image": None,
-            "chromosome_prefix": "chr",
-            "capture": self.capture,
-            "gene": self.gene,
-            "start_time": start_time,
-            "capture_path": f"/mnt/input/{capture}/bed/{capture_file.pop()}",
-        }
 
     def base_output_dirs(self):
         """Returns base directory for output: (system_base, docker_base)"""
@@ -147,13 +153,14 @@ class BaseCNVTool:
 
     @staticmethod
     def parse_vcf_4_2(input_vcf, sample_id):
-        """Parses VCF v4.2, if positive cnv, returns dicts of information within a list"""
+        """Parses VCF v4.0 - v4.2, if positive cnv, returns dicts of information within a list"""
         cnvs = []
         for line in input_vcf:
             if line.startswith("#") or not line:
                 continue
             fields = ["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info", "format", "data"]
             row = {field: data for (field, data) in zip(fields, line.split())}
+            print(line, row)
             format_data = {key: value for (key, value) in zip(row.pop("format").split(":"), row.pop("data").split(":"))}
             info_data = {}
             for info_field in row.pop("info").split(";"):
@@ -179,7 +186,6 @@ class BaseCNVTool:
                 cnvs.append(cnv)
         return cnvs
 
-    @logger.catch(reraise=True)  # TODO: remove decorator once in production
     def process_caller_output(self, vcf_path, sample_id=None):
         cnvs = self.parse_output_file(vcf_path, sample_id)
         gene_bed = self.filter_capture()
@@ -206,6 +212,8 @@ class BaseCNVTool:
             f"{cnv_pat_dir}/cnv-caller-resources/:/mnt/cnv-caller-resources/:ro",
             "-v",
             f"{cnv_pat_dir}/output/:/mnt/output/:rw",
+            "-v",
+            f"{cnv_pat_dir}/tests/test_files/:/mnt/test_files/:ro",
             docker_image,
             *args,
         ]
@@ -234,6 +242,84 @@ class BaseCNVTool:
         """Placeholder for individual tool running"""
         pass
 
+    def upload_cnv_caller(self):
+        Queries.get_or_create(models.Caller, self.session, defaults=dict(name=self.run_type))
+
+    def upload_gene(self):
+        bed = self.filter_capture()
+        defaults = {"name": self.gene, "genome_build": self.settings["genome_build_name"], "capture": self.capture}
+        upload_data = {"chrom": bed[0].split()[0], "start": int(bed[0].split()[1]), "end": int(bed[-1].split()[2])}
+
+        Queries.update_or_create(models.Gene, self.session, defaults=defaults, **upload_data)
+        self.session.commit()
+
+    def upload_positive_cnvs(self, known_cnv_table):
+        for row in known_cnv_table:
+            Queries.get_or_create(models.CNV, self.session, defaults=row["cnv"])
+            self.session.commit()
+            sample_instance = self.session.query(models.Sample).filter_by(**row["sample_defaults"]).first()
+            cnv_instance = self.session.query(models.CNV).filter_by(**row["cnv"]).first()
+            known_cnv = dict(cnv_id=cnv_instance.id, sample_id=sample_instance.id)
+            Queries.get_or_create(models.KnownCNV, self.session, defaults=known_cnv)
+            self.session.commit()
+
+    def upload_samples(self, sample_sheet_path):
+        with open(sample_sheet_path, "r") as handle:
+            known_cnv_table = []
+            gene_instance = (
+                self.session.query(models.Gene)
+                .filter_by(name=self.gene, capture=self.capture, genome_build=self.settings["genome_build_name"])
+                .first()
+            )
+
+            sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
+            for line in sample_sheet:
+                bam_header = self.get_bam_header(line["sample_id"])
+                sample_defaults = {"name": line["sample_id"], "path": line["sample_path"], "gene_id": gene_instance.id}
+                sample_data = {"bam_header": bam_header, "result_type": line["result_type"]}
+
+                Queries.update_or_create(models.Sample, self.session, defaults=sample_defaults, **sample_data)
+
+                if line["result_type"] == "positive":
+                    cnv = {
+                        "alt": line["cnv_call"],
+                        "genome_build": self.settings["genome_build_name"],
+                        "chrom": line["chromosome"],
+                        "start": line["start"],
+                        "end": line["end"],
+                    }
+                    known_cnv_table.append({"cnv": cnv, "sample_defaults": sample_defaults})
+                self.session.commit()
+
+        return known_cnv_table
+
+    def upload_known_data(self):
+        self.upload_cnv_caller()
+        self.upload_gene()
+        known_cnv_table = self.upload_samples(self.sample_sheet)
+        self.upload_positive_cnvs(known_cnv_table)
+
+    def upload_called_cnvs(self, output_paths, sample_ids):
+        for path_and_id in zip(output_paths, sample_ids):
+            cnv_call = self.parse_output_file(path_and_id[0], path_and_id[1])
+            if cnv_call:
+                json_data = json.dumps(cnv_call.pop("json_data"))
+                sample_name = cnv_call.pop("sample_id")
+                cnv_call.update({"genome_build": self.settings["genome_build_name"]})
+
+                Queries.update_or_create(models.CNV, self.session, defaults=cnv_call)
+                self.session.commit()
+                caller_instance = session.query(models.Caller).filter_by(name=self.run_type).first()
+                cnv_instance = session.query(models.CNV).filter_by(**cnv_call).first()
+                sample_instance = session.query(models.Sample).filter_by(name=sample_name).first()
+
+                called_cnv_defaults = dict(
+                    caller_id=caller_instance.id,
+                    cnv_id=cnv_instance.id,
+                    sample_id=sample_instance.id,
+                )
+                Queries.update_or_create(models.Sample, self.session, defaults=called_cnv_defaults, json_data=json_data)
+
     @logger.catch(reraise=True)
     def main(self):
         previous_run_settings_path = (
@@ -241,8 +327,10 @@ class BaseCNVTool:
         )
         if self.run_required(previous_run_settings_path):
             self.run_workflow()
-            self.write_settings_toml()
-        # TODO: read vcfs into database
+            # output_paths, sample_ids = self.run_workflow()
+            # self.upload_known_data()
+            # self.upload_called_cnvs(output_paths, sample_ids)
+            # self.write_settings_toml()
 
     def write_settings_toml(self):
         """Write case toml data for successful run"""
@@ -254,3 +342,31 @@ class BaseCNVTool:
         output_path = f"{output_dir}/{self.gene}.toml"
         with open(output_path, "w") as out_file:
             toml.dump(self.settings, out_file)
+
+
+class Queries:
+    @staticmethod
+    def get_or_create(model, session, defaults=None, **kwargs):
+        params = {k: v for k, v in kwargs.items() if not isinstance(v, sql.ClauseElement)}
+        params.update(defaults or {})
+        instance = session.query(model).filter_by(**params).first()
+        if instance:
+            return instance, False
+        else:
+            instance = model(**params)
+            session.add(instance)
+            return instance, True
+
+    @staticmethod
+    def update_or_create(model, session, defaults=None, **kwargs):
+        params = {k: v for k, v in kwargs.items() if not isinstance(v, sql.ClauseElement)}
+        params.update(defaults or {})
+        query = session.query(model).filter_by(**defaults)
+        if query.first():
+            query.update(kwargs)
+            instance = query.first()
+            return instance, False
+        else:
+            instance = model(**params)
+            session.add(instance)
+            return instance, True

@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Column, Date, Integer, String, UniqueConstraint, Text, Time, sql
+from sqlalchemy import ForeignKey, Column, Integer, String, UniqueConstraint, Text, DateTime, sql
 from sqlalchemy.orm import relationship
 
 from .db_session import Base
@@ -9,7 +9,6 @@ class CalledCNV(Base):
     id = Column(Integer, primary_key=True)
     caller_id = Column(Integer, ForeignKey("callers.id", ondelete="CASCADE"), nullable=False)
     cnv_id = Column(Integer, ForeignKey("cnvs.id", ondelete="CASCADE"), nullable=False)
-    gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
     json_data = Column(Text)
     sample_id = Column(Integer, ForeignKey("samples.id", ondelete="CASCADE"), nullable=False)
 
@@ -56,10 +55,10 @@ class File(Base):
 class Gene(Base):
     __tablename__ = "genes"
     id = Column(Integer, primary_key=True)
-    genome_build = Column(String)
     capture = Column(String)
     chrom = Column(String)
     end = Column(Integer)
+    genome_build = Column(String)    
     start = Column(Integer)
     name = Column(String)
 
@@ -73,7 +72,6 @@ class KnownCNV(Base):
     __tablename__ = "known_cnvs"
     id = Column(Integer, primary_key=True)
     cnv_id = Column(Integer, ForeignKey("cnvs.id", ondelete="CASCADE"), nullable=False)
-    gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
     sample_id = Column(Integer, ForeignKey("samples.id", ondelete="CASCADE"), nullable=False)
 
     def __repr__(self):
@@ -84,9 +82,9 @@ class Run(Base):
     __tablename__ = "runs"
     id = Column(Integer, primary_key=True)
     caller_id = Column(Integer, ForeignKey("callers.id", ondelete="CASCADE"), nullable=False)
-    end_time = Column(Time)
+    end_time = Column(DateTime)
     gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
-    start_time = Column(Time)
+    start_time = Column(DateTime)
 
     __table_args__ = (UniqueConstraint(caller_id, gene_id),)
 
@@ -105,29 +103,3 @@ class Sample(Base):
 
     def __repr__(self):
         return f"{self.name}"
-
-
-def get_or_create(model, session, defaults=None, **kwargs):
-    params = {k: v for k, v in kwargs.items() if not isinstance(v, sql.ClauseElement)}
-    params.update(defaults or {})
-    instance = session.query(model).filter_by(**params).first()
-    if instance:
-        return instance, False
-    else:
-        instance = model(**params)
-        session.add(instance)
-        return instance, True
-
-
-def update_or_create(model, session, defaults=None, **kwargs):
-    params = {k: v for k, v in kwargs.items() if not isinstance(v, sql.ClauseElement)}
-    params.update(defaults or {})
-    query = session.query(model).filter_by(**defaults)
-    if query.first():
-        query.update(kwargs)
-        instance = query.first()
-        return instance, False
-    else:
-        instance = model(**params)
-        session.add(instance)
-        return instance, True
