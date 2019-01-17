@@ -131,7 +131,7 @@ class BaseCNVTool:
                     within_region = (start <= cnv_start <= end) or (start <= cnv_end <= end)
                     spanning_region = (cnv_start <= start) and (cnv_end >= end)
                     if within_region or spanning_region:
-                        cnv["json_data"] = {field: cnv.pop(field) for field in self.extra_db_fields if field}
+                        cnv["json_data"] = {field: cnv.pop(field) for field in self.extra_db_fields}
                         filtered_cnvs.append(cnv)
                         break
         return filtered_cnvs
@@ -201,12 +201,11 @@ class BaseCNVTool:
                 cnvs.append(cnv)
         return cnvs
 
-    def process_caller_output(self, vcf_path, sample_id=None):
-        cnvs = self.parse_output_file(vcf_path, sample_id)
+    def process_caller_output(self, sample_path, sample_id=None):
+        cnvs = self.parse_output_file(sample_path, sample_id)
         gene_bed = self.filter_capture()
         filtered_cnvs = self.filter_cnvs(cnvs, gene_bed)
-        if filtered_cnvs:
-            logger.debug(f"{self.run_type}\n {filtered_cnvs}\n\n")
+        return filtered_cnvs
 
     def run_docker_subprocess(self, args, stdout=None, docker_image=None, docker_genome="/mnt/ref_genome/"):
         """Run docker subprocess as root user, mounting input and reference genome dir"""
@@ -259,9 +258,9 @@ class BaseCNVTool:
 
     def upload_all_called_cnvs(self, output_paths, sample_ids):
         for path_and_id in zip(output_paths, sample_ids):
-            cnv_call = self.parse_output_file(path_and_id[0], path_and_id[1])
-            if cnv_call:
-                self.upload_called_cnv(cnv_call)
+            cnv_calls = self.process_caller_output(path_and_id[0], path_and_id[1])
+            for cnv in cnv_calls:
+                self.upload_called_cnv(cnv)
 
     def upload_all_known_data(self):
         self.upload_cnv_caller()
@@ -343,10 +342,12 @@ class BaseCNVTool:
             f"{cnv_pat_dir}/successful-run-settings/{self.capture}/{self.run_type}/{self.gene}.toml"
         )
         if self.run_required(previous_run_settings_path):
-            self.run_workflow()
-            # output_paths, sample_ids = self.run_workflow()
-            # self.upload_all_known_data()
-            # self.upload_all_called_cnvs(output_paths, sample_ids)
+            if self.run_type.endswith("cohort"):
+                self.run_workflow()
+            else:
+                output_paths, sample_ids = self.run_workflow()
+                self.upload_all_known_data()
+                self.upload_all_called_cnvs(output_paths, sample_ids)
             self.write_settings_toml()
 
     def write_settings_toml(self):

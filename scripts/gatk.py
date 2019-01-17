@@ -276,3 +276,7 @@ class GATKCohort(GATKBase):
                     f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+        output_paths = [f"{self.output_base}/PostprocessGermlineCNVCalls/{sample_name}_segments.vcf" for sample_name in sample_names]
+
+        return output_paths, sample_names

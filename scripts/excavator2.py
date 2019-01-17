@@ -91,3 +91,7 @@ class Excavator2(base_classes.BaseCNVTool):
                 self.max_cpu,
             ]
         )
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+        output_paths = [f"{self.output_base}/results/Results/{sample_name}/EXCAVATORRegionCall_{sample_name}.vcf" for sample_name in sample_names]
+
+        return output_paths, sample_names

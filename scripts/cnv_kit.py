@@ -7,6 +7,7 @@ https://cnvkit.readthedocs.io/en/stable/germline.html
 import csv
 import subprocess
 import os
+import pathlib
 
 import toml
 
@@ -72,21 +73,22 @@ class CNVKit(base_classes.BaseCNVTool):
             ]
         )
 
+        output_paths = []
         for bam in self.settings["unknown_bams"]:
-            sample = bam.split("/")[-1].replace(".bam", "")
+            bam_name = pathlib.Path(bam).name.replace(".bam", "")
+            output_paths.append(f"{self.output_base}/batch-results/{bam_name}_calls.cns")
             sample_name = self.bam_to_sample[bam]
-            gene_metric_out = f"{self.output_base}/{sample_name}.txt"
 
             # segmetrics to get confidence intervals for filtering in call
             self.run_cnvkit_command(
                 [
                     "segmetrics",
                     "-s",
-                    f"{self.docker_output_base}/batch-results/{sample}.cns",
+                    f"{self.docker_output_base}/batch-results/{bam_name}.cns",
                     "--ci",
-                    f"{self.docker_output_base}/batch-results/{sample}.cnr",
+                    f"{self.docker_output_base}/batch-results/{bam_name}.cnr",
                     "-o",
-                    f"{self.docker_output_base}/batch-results/{sample}_ci.cns",
+                    f"{self.docker_output_base}/batch-results/{bam_name}_ci.cns",
                 ]
             )
 
@@ -95,10 +97,15 @@ class CNVKit(base_classes.BaseCNVTool):
                     "call",
                     "-m",
                     "clonal",
-                    f"{self.docker_output_base}/batch-results/{sample}_ci.cns",
+                    f"{self.docker_output_base}/batch-results/{bam_name}_ci.cns",
                     "--filter",
                     "ci",
                     "-o",
-                    f"{self.docker_output_base}/batch-results/{sample}_calls.cns",
+                    f"{self.docker_output_base}/batch-results/{bam_name}_calls.cns",
                 ]
             )
+
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+
+        return output_paths, sample_names
+

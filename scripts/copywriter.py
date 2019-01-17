@@ -36,9 +36,9 @@ class Copywriter(base_classes.BaseCNVTool):
                     cnv["control_id"] = bamfile_to_sample[cnv.pop("control")]
                     cnv["seg.mean"] = float(cnv["seg.mean"])
                     # TODO: set this threshold using ROC curve
-                    if cnv["seg.mean"] <= -1.3:
+                    if cnv["seg.mean"] <= -0.3:
                         cnv["alt"] = "DEL"
-                    elif cnv["seg.mean"] >= 1.3:
+                    elif cnv["seg.mean"] >= 0.3:
                         cnv["alt"] = "DUP"
                     else:
                         continue
@@ -53,6 +53,8 @@ class Copywriter(base_classes.BaseCNVTool):
         # only paired settings so just pair up unknowns with controls at random
         # if it looks good, could use exomedepth choice of normal to select the appropriate control
 
+        sample_names = []
+        output_paths = []
         # assume 3 gb per worker so memory doesn't run out
         max_workers = min([int(self.max_cpu), int(self.max_mem) // 3])
         total_batches = len(self.settings["unknown_bams"]) // 30
@@ -80,6 +82,9 @@ class Copywriter(base_classes.BaseCNVTool):
                     writer.writerow({"samples": normal_bam, "controls": normal_bam})
                     writer.writerow({"samples": unknown_bam, "controls": normal_bam})
 
+                    sample_names.append(f"{self.bam_to_sample[unknown_bam]}")
+                    output_paths.append(f"{self.output_base}/batch_{batch_number}/results.txt")
+
             base_classes.logger.info(f"Running CopywriteR on batch {batch_number}")
             self.run_command(
                 [
@@ -88,3 +93,6 @@ class Copywriter(base_classes.BaseCNVTool):
                     f"--capture-regions={self.settings['capture_path']}",
                 ]
             )
+
+        return output_paths, sample_names
+
