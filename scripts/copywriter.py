@@ -16,18 +16,10 @@ from . import utils, base_classes
 
 class Copywriter(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        super().__init__(capture, gene, start_time, normal_panel)
+        self.run_type = "copywriter"  
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["num.mark", "unknown", "seg.mean", "control_id"]
-        self.run_type = "copywriter"
-
-        self.output_base, self.docker_output_base = self.base_output_dirs()
-
-        sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-
-        self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0", "unknown_bams": docker_bams}
-        self.settings["normal_bams"] = self.settings.pop("bams")
+        self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0"}
 
     def parse_output_file(self, file_path, sample_id):
         cnvs = []

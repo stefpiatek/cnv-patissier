@@ -18,27 +18,16 @@ from . import utils, base_classes
 
 class XHMM(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        super().__init__(capture, gene, start_time, normal_panel)
+        self.run_type = "xhmm"        
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
-
-        self.run_type = "xhmm"
-
-        self.output_base, self.docker_output_base = self.base_output_dirs()
-
-        sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-
         self.settings = {
             **self.settings,
-            "contig-ploidy-priors": f"/mnt/cnv-caller-resources/gatk/contig-ploidy-priors.tsv",
             "docker_image": "stefpiatek/xhmm:1.0",
-            "unknown_bams": docker_bams,
         }
-        self.settings["normal_bams"] = self.settings.pop("bams")
 
     def run_gatk_command(self, args):
-        """Create dir for output and runs a GATK command in docker"""
+        """Create dir for output and runs a GATK command in the XHMM docker"""
         try:
             os.makedirs(f"{self.output_base}/{args[0]}")
         except FileExistsError:
@@ -59,7 +48,10 @@ class XHMM(base_classes.BaseCNVTool):
         base_classes.logger.info(f"Completed  GATK step of XHMM: {args[0]} {args[-1]}")
 
     def parse_output_file(self, file_path, sample_id):
-        docker_file_path = file_path.replace(base_classes.cnv_pat_dir, "/mnt")
+        if "PYTEST_CURRENT_TEST" in os.environ.keys():
+            docker_file_path = file_path.replace(f"{base_classes.cnv_pat_dir}/tests", "/mnt")
+        else:
+            docker_file_path = file_path.replace(base_classes.cnv_pat_dir, "/mnt")
 
         if not os.path.exists(f"{file_path}.gz.tbi"):
             self.run_docker_subprocess(["bgzip", docker_file_path], docker_image="lethalfang/tabix:1.7")
@@ -74,7 +66,7 @@ class XHMM(base_classes.BaseCNVTool):
         )
 
         vcf_data = str(sample_vcf.stdout, "utf-8").split("\n")
-        cnvs = self.parse_vcf_4_2(vcf_data, sample_id)
+        cnvs = self.parse_vcf(vcf_data, sample_id)
 
         return cnvs
 

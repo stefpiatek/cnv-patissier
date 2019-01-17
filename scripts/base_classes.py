@@ -32,24 +32,35 @@ logger.add(f"{cnv_pat_dir}/logs/error.log", level="ERROR", mode="w")
 
 
 class BaseCNVTool:
-    def __init__(self, capture, gene, start_time, normal_panel=True, testing=False):
-        if not testing:
+    def __init__(self, capture, gene, start_time, normal_panel=True):
+        self.session = DbSession.factory()
+        self.start_time = start_time
+        self.capture = capture
+        self.extra_db_fields = []
+        self.gene = gene
+
+        if "PYTEST_CURRENT_TEST" in os.environ.keys():
+            self.settings = {}
+        else:
+            # will not be done during pytest running of tests
             self.max_cpu = cnv_pat_settings["max_cpu"]
             self.max_mem = cnv_pat_settings["max_mem"]
             self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
+            self.output_base, self.docker_output_base = self.base_output_dirs()
 
-            sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=normal_panel)
+            normal_sample_ids, normal_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=True)
+            unknown_sample_ids, unknown_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
+            self.bam_mount = utils.SampleUtils.get_mount_point(unknown_bams + normal_bams)
+            normal_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in normal_bams]            
+            unknown_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in unknown_bams]
+
             bam_to_sample = utils.SampleUtils.get_bam_to_id(self.sample_sheet)
-
-            self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-
-            docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
             self.bam_to_sample = {
                 f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id
                 for (bam, sample_id) in bam_to_sample.items()
-            }
+            }            
             self.sample_to_bam = {sample_id: bam for (bam, sample_id) in self.bam_to_sample.items()}
-
+            
             with open(self.sample_sheet) as handle:
                 sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
                 capture_file = set(f"{row['capture_name']}.bed" for row in sample_sheet)
@@ -59,23 +70,18 @@ class BaseCNVTool:
                 )
 
             self.settings = {
-                "bams": docker_bams,
+                "normal_bams": normal_docker_bams,
                 "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
                 "genome_build_name": cnv_pat_settings["genome_build_name"],
                 "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
                 "docker_image": None,
                 "chromosome_prefix": "chr",
-                "capture": self.capture,
-                "gene": self.gene,
+                "capture": capture,
+                "gene": gene,
                 "start_time": start_time,
                 "capture_path": f"/mnt/input/{capture}/bed/{capture_file.pop()}",
+                "unknown_bams": unknown_docker_bams
             }
-
-        self.session = DbSession.factory()
-        self.start_time = start_time
-        self.capture = capture
-        self.extra_db_fields = []
-        self.gene = gene
 
     def base_output_dirs(self):
         """Returns base directory for output: (system_base, docker_base)"""
@@ -152,7 +158,7 @@ class BaseCNVTool:
         pass
 
     @staticmethod
-    def parse_vcf_4_2(input_vcf, sample_id):
+    def parse_vcf(input_vcf, sample_id):
         """Parses VCF v4.0 - v4.2, if positive cnv, returns dicts of information within a list"""
         cnvs = []
         for line in input_vcf:
@@ -160,7 +166,6 @@ class BaseCNVTool:
                 continue
             fields = ["chrom", "pos", "id", "ref", "alt", "qual", "filter", "info", "format", "data"]
             row = {field: data for (field, data) in zip(fields, line.split())}
-            print(line, row)
             format_data = {key: value for (key, value) in zip(row.pop("format").split(":"), row.pop("data").split(":"))}
             info_data = {}
             for info_field in row.pop("info").split(";"):
@@ -172,16 +177,26 @@ class BaseCNVTool:
                     elif info_field:
                         field, value = ["calling", "IMPRECISE"]
                     else:
-                        field, value = ["empty", "empty"]
+                        # empty value so just skip field
+                        continue
                 info_data[field] = value
-            genotype = format_data["GT"].split("/")[0]
-            if genotype != "0":
+            if "CN" in format_data.keys():  # copy number is copy info
+                copy_info = int(format_data["CN"])
+            else:  # genotype gives copy number info as a string
+                copy_info = format_data["GT"]
+            if copy_info != "0" and copy_info != 2:
                 row["start"] = row.pop("pos")
-                if genotype == "1":
-                    row["alt"] = "DEL"
-                elif genotype == "2":
-                    row["alt"] = "DUP"
                 end = info_data["END"]
+                if isinstance(copy_info, int):
+                    if copy_info < 2:
+                        row["alt"] = "DEL"
+                    elif copy_info > 2:
+                        row["alt"] = "DUP"
+                else:
+                    if copy_info == "1":
+                        row["alt"] = "DEL"
+                    elif copy_info == "2":
+                        row["alt"] = "DUP"
                 cnv = {**row, "end": end, "sample_id": sample_id, "format_data": format_data, "info_data": info_data}
                 cnvs.append(cnv)
         return cnvs
@@ -213,7 +228,7 @@ class BaseCNVTool:
             "-v",
             f"{cnv_pat_dir}/output/:/mnt/output/:rw",
             "-v",
-            f"{cnv_pat_dir}/tests/test_files/:/mnt/test_files/:ro",
+            f"{cnv_pat_dir}/tests/test_files/:/mnt/test_files/:rw",
             docker_image,
             *args,
         ]
@@ -242,6 +257,18 @@ class BaseCNVTool:
         """Placeholder for individual tool running"""
         pass
 
+    def upload_all_called_cnvs(self, output_paths, sample_ids):
+        for path_and_id in zip(output_paths, sample_ids):
+            cnv_call = self.parse_output_file(path_and_id[0], path_and_id[1])
+            if cnv_call:
+                self.upload_called_cnv(cnv_call)
+
+    def upload_all_known_data(self):
+        self.upload_cnv_caller()
+        self.upload_gene()
+        known_cnv_table = self.upload_samples(self.sample_sheet)
+        self.upload_positive_cnvs(known_cnv_table)
+
     def upload_cnv_caller(self):
         Queries.get_or_create(models.Caller, self.session, defaults=dict(name=self.run_type))
 
@@ -256,7 +283,6 @@ class BaseCNVTool:
     def upload_positive_cnvs(self, known_cnv_table):
         for row in known_cnv_table:
             Queries.get_or_create(models.CNV, self.session, defaults=row["cnv"])
-            self.session.commit()
             sample_instance = self.session.query(models.Sample).filter_by(**row["sample_defaults"]).first()
             cnv_instance = self.session.query(models.CNV).filter_by(**row["cnv"]).first()
             known_cnv = dict(cnv_id=cnv_instance.id, sample_id=sample_instance.id)
@@ -293,32 +319,23 @@ class BaseCNVTool:
 
         return known_cnv_table
 
-    def upload_known_data(self):
-        self.upload_cnv_caller()
-        self.upload_gene()
-        known_cnv_table = self.upload_samples(self.sample_sheet)
-        self.upload_positive_cnvs(known_cnv_table)
+    def upload_called_cnv(self, cnv_call):
+        json_data = json.dumps(cnv_call.pop("json_data"))
+        sample_name = cnv_call.pop("sample_id")
+        cnv_call.update({"genome_build": self.settings["genome_build_name"]})
 
-    def upload_called_cnvs(self, output_paths, sample_ids):
-        for path_and_id in zip(output_paths, sample_ids):
-            cnv_call = self.parse_output_file(path_and_id[0], path_and_id[1])
-            if cnv_call:
-                json_data = json.dumps(cnv_call.pop("json_data"))
-                sample_name = cnv_call.pop("sample_id")
-                cnv_call.update({"genome_build": self.settings["genome_build_name"]})
+        Queries.get_or_create(models.CNV, self.session, defaults=cnv_call)
+        caller_instance = self.session.query(models.Caller).filter_by(name=self.run_type).first()
+        cnv_instance = self.session.query(models.CNV).filter_by(**cnv_call).first()
+        sample_instance = self.session.query(models.Sample).filter_by(name=sample_name).first()
 
-                Queries.update_or_create(models.CNV, self.session, defaults=cnv_call)
-                self.session.commit()
-                caller_instance = session.query(models.Caller).filter_by(name=self.run_type).first()
-                cnv_instance = session.query(models.CNV).filter_by(**cnv_call).first()
-                sample_instance = session.query(models.Sample).filter_by(name=sample_name).first()
-
-                called_cnv_defaults = dict(
-                    caller_id=caller_instance.id,
-                    cnv_id=cnv_instance.id,
-                    sample_id=sample_instance.id,
-                )
-                Queries.update_or_create(models.Sample, self.session, defaults=called_cnv_defaults, json_data=json_data)
+        called_cnv_defaults = dict(
+            caller_id=caller_instance.id,
+            cnv_id=cnv_instance.id,
+            sample_id=sample_instance.id,
+        )
+        Queries.update_or_create(models.CalledCNV, self.session, defaults=called_cnv_defaults, json_data=json_data)
+        self.session.commit()
 
     @logger.catch(reraise=True)
     def main(self):
@@ -328,9 +345,9 @@ class BaseCNVTool:
         if self.run_required(previous_run_settings_path):
             self.run_workflow()
             # output_paths, sample_ids = self.run_workflow()
-            # self.upload_known_data()
-            # self.upload_called_cnvs(output_paths, sample_ids)
-            # self.write_settings_toml()
+            # self.upload_all_known_data()
+            # self.upload_all_called_cnvs(output_paths, sample_ids)
+            self.write_settings_toml()
 
     def write_settings_toml(self):
         """Write case toml data for successful run"""

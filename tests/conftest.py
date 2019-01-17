@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import subprocess
 
 import pytest
 
@@ -9,6 +10,15 @@ from scripts.db_session import DbSession
 from scripts.base_classes import Queries, BaseCNVTool
 
 # global application scope.  create Session class, engine
+
+
+@pytest.yield_fixture(scope="class")
+def cleanup_after_xhmm():
+    vcf_path = "tests/test_files/output_parsing/xhmm/DATA.vcf"
+    yield
+    # teardown
+    subprocess.run(["gunzip", f"{vcf_path}.gz"], check=True)
+    subprocess.run(["rm", f"{vcf_path}.gz.tbi"], check=True)
 
 
 @pytest.yield_fixture(scope="session")
@@ -38,7 +48,7 @@ def db_session(db):
 
 @pytest.fixture(scope="class")
 def populate_db(db):
-    caller = BaseCNVTool("capture", "gene", "time", testing=True)
+    caller = BaseCNVTool("capture", "gene", "time")
     session = caller.session
 
     # callers
@@ -162,7 +172,7 @@ def populate_db(db):
     called_cnv_1 = {"caller_id": 1, "cnv_id": 1, "sample_id": 1, "json_data": json.dumps({"depth": "12"})}
     Queries.update_or_create(models.CalledCNV, session, defaults={"id": 1}, **called_cnv_1)
     called_cnv_2 = {"caller_id": 1, "cnv_id": 2, "sample_id": 2, "json_data": json.dumps({"depth": "120"})}
-    Queries.update_or_create(models.CalledCNV, session, defaults={"id": 1}, **called_cnv_2)
+    Queries.update_or_create(models.CalledCNV, session, defaults={"id": 2}, **called_cnv_2)
 
     # files
     file_1 = {

@@ -15,7 +15,9 @@ from . import utils, base_classes
 
 class GATKBase(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel):
-        super().__init__(capture, gene, start_time, normal_panel)
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
+        self.extra_db_fields = ["format_data", "info_data", "id", "ref", "qual", "filter"]
+
 
         self.settings = {
             **self.settings,
@@ -26,6 +28,11 @@ class GATKBase(base_classes.BaseCNVTool):
             "docker_image": "broadinstitute/gatk:4.0.11.0",
         }
 
+    def parse_output_file(self, file_path, sample_id):
+        with open(file_path) as handle:
+            cnvs = self.parse_vcf(handle, sample_id)
+        return cnvs
+    
     def run_gatk_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
         try:
@@ -42,10 +49,9 @@ class GATKBase(base_classes.BaseCNVTool):
 
 class GATKCase(GATKBase):
     def __init__(self, capture, gene, start_time):
+        self.run_type = "gatk_case"       
         super().__init__(capture, gene, start_time, normal_panel=False)
-        self.run_type = "gatk_case"
         self.output_base, self.docker_output_base = self.base_output_dirs()
-        self.extra_db_fields = ["format_data", "info_data", "id", "ref", "qual", "filter"]
 
         normal_path = f"{base_classes.cnv_pat_dir}/successful-run-settings/{self.capture}/gatk_cohort/{self.gene}.toml"
         with open(normal_path) as handle:
@@ -60,14 +66,9 @@ class GATKCase(GATKBase):
             "gcnv_model": (f"{self.normal_path_base}/GermlineCNVCaller/normal-cohort-run-model"),
         }
 
-    def parse_output_file(self, file_path, sample_id):
-        with open(file_path) as handle:
-            cnvs = self.parse_vcf_4_2(handle, sample_id)
-        return cnvs
-
     def run_workflow(self):
         collect_read_counts = []
-        for bam in self.settings["bams"]:
+        for bam in self.settings["unknown_bams"]:
             sample_name = self.bam_to_sample[bam]
             hdf5_name = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hdf5"
             collect_read_counts.append(hdf5_name)
@@ -161,8 +162,8 @@ class GATKCase(GATKBase):
 
 class GATKCohort(GATKBase):
     def __init__(self, cohort, gene, start_time):
+        self.run_type = "gatk_cohort"        
         super().__init__(cohort, gene, start_time, normal_panel=True)
-        self.run_type = "gatk_cohort"
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
     def run_workflow(self):
@@ -186,7 +187,7 @@ class GATKCohort(GATKBase):
         )
 
         collect_read_counts = []
-        for bam in self.settings["bams"]:
+        for bam in self.settings["normal_bams"]:
             sample_name = self.bam_to_sample[bam]
             collect_read_count_out = f"{self.docker_output_base}/CollectReadCounts/{sample_name}.hd5f"
 

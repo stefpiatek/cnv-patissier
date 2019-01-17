@@ -15,18 +15,10 @@ from . import utils, base_classes
 
 class CNVKit(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time):
+        self.run_type = "cnvkit"       
         super().__init__(capture, gene, start_time, normal_panel=True)
-        self.run_type = "cnvkit"
-        self.extra_db_fields = ["probes", "cn", "log2", "depth", "weight", ""]
-
-        self.output_base, self.docker_output_base = self.base_output_dirs()
-
-        sample_ids, bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-
-        self.settings = {**self.settings, "docker_image": "etal/cnvkit:0.9.5", "unknown_bams": docker_bams}
-        self.settings["normal_bams"] = self.settings.pop("bams")
+        self.extra_db_fields = ["probes", "cn", "log2", "depth", "weight"]
+        self.settings = {**self.settings, "docker_image": "etal/cnvkit:0.9.5"}
 
     def parse_output_file(self, file_path, sample_id):
         cnvs = []

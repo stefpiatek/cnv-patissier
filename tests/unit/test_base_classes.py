@@ -3,19 +3,20 @@ import pytest
 from scripts.base_classes import BaseCNVTool
 from scripts import models
 
-import pathlib
-
-import pytest
-
 
 def instance_data(instance):
     return {k: v for k, v in instance.__dict__.items() if k != "_sa_instance_state"}
 
 
 @pytest.mark.usefixtures("db", "db_session")
+class TestFilterCNVs:
+    pass
+
+
+@pytest.mark.usefixtures("db", "db_session")
 class TestGetBAMHeader:
     def setup(self):
-        self.caller = BaseCNVTool("capture", "gene", "time", testing=True)
+        self.caller = BaseCNVTool("capture", "gene", "time")
         self.caller.run_type = "example_type"
         self.caller.sample_to_bam = {"sample_1": "/mnt/test_files/input/bam_header.bam"}
         self.caller.bam_mount = "/mnt/data/"
@@ -28,47 +29,10 @@ class TestGetBAMHeader:
         assert expected_header == output_header
 
 
-class TestParseVCF:
-    def setup(self):
-        self.del_vcf = f"tests/test_files/output_parsing/vcf/15384-del_segments.vcf"
-        self.del_expected_vcf_dict = {
-            "chrom": "chr7",
-            "start": "513245",
-            "end": "514245",
-            "id": "CNV_chr7_513245_514245",
-            "ref": "N",
-            "alt": "DEL",
-            "qual": ".",
-            "filter": ".",
-            "info_data": {"END": "514245"},
-            "format_data": {"GT": "1", "CN": "1", "NP": "4", "QA": "118", "QS": "473", "QSE": "67", "QSS": "118"},
-            "sample_id": "15384-del",
-        }
-
-    def test_del(self):
-        with open(self.del_vcf) as handle:
-            vcf_dict = BaseCNVTool.parse_vcf_4_2(handle, "15384-del")
-        assert vcf_dict[0] == self.del_expected_vcf_dict
-
-    def test_dup(self):
-        expected = dict(self.del_expected_vcf_dict)
-        expected["alt"] = "DUP"
-        expected["format_data"] = {"GT": "2", "CN": "3", "NP": "4", "QA": "118", "QS": "473", "QSE": "67", "QSS": "118"}
-        expected["sample_id"] = "15384-dup"
-        with open(self.del_vcf.replace("15384-del", "15384-dup")) as handle:
-            vcf_dict = BaseCNVTool.parse_vcf_4_2(handle, "15384-dup")
-        assert vcf_dict[0] == expected
-
-    def test_no_cnv(self):
-        with open(self.del_vcf.replace("15384-del", "15384-none")) as handle:
-            vcf_dict = BaseCNVTool.parse_vcf_4_2(handle, None)
-        assert vcf_dict == []
-
-
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadCNVCaller:
     def setup(self):
-        self.caller = BaseCNVTool("capture", "gene", "time", testing=True)
+        self.caller = BaseCNVTool("capture", "gene", "time")
         self.caller.run_type = "example_type"
 
     def test_new_caller(self):
@@ -89,7 +53,7 @@ class TestUploadCNVCaller:
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadGene:
     def setup(self):
-        self.caller = BaseCNVTool("ICR", "gene_1", "time", testing=True)
+        self.caller = BaseCNVTool("ICR", "gene_1", "time")
         self.caller.run_type = "example_type"
         self.caller.settings = {"capture_path": "/mnt/tests/test_files/input/capture.bed", "genome_build_name": "hg19"}
 
@@ -125,7 +89,7 @@ class TestUploadGene:
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadSamples:
     def setup(self):
-        self.caller = BaseCNVTool("ICR", "gene_1", "time", testing=True)
+        self.caller = BaseCNVTool("ICR", "gene_1", "time")
         self.caller.run_type = "example_type"
         self.caller.sample_to_bam = {
             "12S13548": "/mnt/test_files/input/bam_header.bam",
@@ -171,7 +135,7 @@ class TestUploadSamples:
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadPositiveCNVs:
     def setup(self):
-        self.caller = BaseCNVTool("ICR", "gene_1", "time", testing=True)
+        self.caller = BaseCNVTool("ICR", "gene_1", "time")
         self.caller.run_type = "example_type"
         self.known_cnv = [
             {
@@ -212,5 +176,29 @@ class TestUploadPositiveCNVs:
 
 
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
-class TestUploadCalledCNVs:
-    pass
+class TestUploadCalledCNV:
+    def setup(self):
+        self.caller = BaseCNVTool("ICR", "gene_1", "time")
+        self.caller.run_type = "first_caller"
+        self.caller.settings = {"genome_build_name": "hg19"}
+        self.cnv_call = {
+            "start": "10",
+            "end": "120",
+            "chrom": "chr1",
+            "sample_id": "12S13548",
+            "alt": "DEL",
+            "json_data": {"extra_field1": "extra_data1", "extra_field2": "extra_data2"},
+        }
+
+    def test_new_cnv(self):
+        self.caller.upload_called_cnv(self.cnv_call)
+        uploaded_cnv = self.caller.session.query(models.CNV).filter_by(start=10, end=120, chrom="chr1").first()
+        uploaded_called_cnv = (
+            self.caller.session.query(models.CalledCNV)
+            .filter_by(caller_id=1, sample_id=1, cnv_id=uploaded_cnv.id)
+            .first()
+        )
+        assert uploaded_cnv.id > 2
+        assert uploaded_cnv.alt == "DEL"
+        assert uploaded_called_cnv.id > 2
+        assert uploaded_called_cnv.json_data == '{"extra_field1": "extra_data1", "extra_field2": "extra_data2"}'
