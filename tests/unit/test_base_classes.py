@@ -10,7 +10,69 @@ def instance_data(instance):
 
 @pytest.mark.usefixtures("db", "db_session")
 class TestFilterCNVs:
-    pass
+    def setup(self):
+        self.caller = BaseCNVTool("capture", "gene", "time")
+        self.caller.run_type = "example_type"
+        self.caller.extra_db_fields = ["extra"]
+        self.gene_bed = [
+            "chr1\t1000\t1500\tgene",
+            "chr1\t2000\t2500\tgene",
+            "chr1\t5000\t6000\tgene",
+            "chr17\t1000\t1500\tgene_2",
+        ]
+
+    def test_filter_out(self):
+        chrom_mismatch = dict(chrom="chr21", start="1000", end="1500", extra="dummy")
+        outside_start_end = dict(chrom="chr17", start="2000", end="2500", extra="dummy")
+        filtered = self.caller.filter_cnvs([chrom_mismatch, outside_start_end], self.gene_bed)
+        assert filtered == []
+
+    def test_filter_within(self):
+
+        within = dict(chrom="chr17", start="1200", end="1300", extra="dummy")
+        within_filtered = self.caller.filter_cnvs([within], self.gene_bed)
+
+        start_within = dict(chrom="chr17", start="1200", end="2000", extra="dummy")
+        start_within_filtered = self.caller.filter_cnvs([start_within], self.gene_bed)
+
+        end_within = dict(chrom="chr17", start="500", end="1200", extra="dummy")
+        end_within_filtered = self.caller.filter_cnvs([end_within], self.gene_bed)
+
+        assert within_filtered[0]["start"] == "1200"
+        assert start_within_filtered[0]["start"] == "1200"
+        assert end_within_filtered[0]["end"] == "1200"
+
+    def test_filter_span(self):
+        span = dict(chrom="chr1", start="500", end="1600", extra="dummy")
+        span_filtered = self.caller.filter_cnvs([span], self.gene_bed)
+
+        span_multiple = dict(chrom="chr1", start="500", end="4000", extra="dummy")
+        span_multiple_filtered = self.caller.filter_cnvs([span_multiple], self.gene_bed)
+
+        assert span_filtered[0]["start"] == "500"
+        assert len(span_multiple_filtered) == 1
+        assert span_multiple_filtered[0]["start"] == "500"
+
+    def test_multiple_cnvs(self):
+        span_multiple = dict(chrom="chr1", start="500", end="4000", extra="dummy")
+        within = dict(chrom="chr17", start="1200", end="1300", extra="dummy")
+
+        filtered = self.caller.filter_cnvs([span_multiple, within], self.gene_bed)
+        assert len(filtered) == 2
+        assert filtered[0]["chrom"] == "chr1"
+        assert filtered[1]["chrom"] == "chr17"
+
+    def test_extra_fields(self):
+        dummy = {
+            "key1": "val1",
+            "dict_key": {"sub_dict_key1": "sub_dict_val1", "sub_dict_key2": "sub_dict_val2"},
+            "key2": "val2",
+            "key3": "val3",
+        }
+        within = dict(chrom="chr17", start="1200", end="1300", extra=dummy)
+        filtered = self.caller.filter_cnvs([within], self.gene_bed)
+        print(filtered[0])
+        assert filtered[0]["json_data"]["extra"] == dummy
 
 
 @pytest.mark.usefixtures("db", "db_session")
