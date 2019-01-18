@@ -7,7 +7,7 @@ cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 class TestSampleUtilsSelectSamples:
     def setup(self):
-        self.sample_path_prefix = f"{cnv_pat_dir}/tests/test_files/input/cohort/sample-sheets/gene"
+        self.sample_path_prefix = f"{cnv_pat_dir}/tests/test_files/input/capture/sample-sheets/gene"
 
     def test_normal_panel(self):
         expected_ids = [str(number) for number in range(17327, 17331)]

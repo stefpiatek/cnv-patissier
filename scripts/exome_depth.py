@@ -16,9 +16,28 @@ from . import utils, base_classes
 
 class ExomeDepthBase(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel):
-        super().__init__(capture, gene, start_time, normal_panel)
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
 
         self.settings = {**self.settings, "docker_image": "stefpiatek/exomedepth:1.1.10", "min_mapq": 20}
+
+    def parse_output_file(self, file_path, sample_id):
+        cnvs = []
+        with open(file_path, "r") as handle:
+            output = csv.DictReader(handle, delimiter="\t")
+            for row in output:
+                if row:
+                    cnv = dict(row)
+                    cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv.pop('chromosome')}"
+                    cnv["sample_id"] = sample_id
+                    call = cnv.pop("type")
+                    if call == "deletion":
+                        cnv["alt"] = "DEL"
+                    elif call == "duplication":
+                        cnv["alt"] = "DUP"
+                    else:
+                        raise Exception(f"non-deletion or duplication called in Exome depth:\n {cnv}")
+                    cnvs.append(cnv)
+        return cnvs
 
     def run_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
@@ -30,9 +49,8 @@ class ExomeDepthBase(base_classes.BaseCNVTool):
 
 class ExomeDepthCohort(ExomeDepthBase):
     def __init__(self, capture, gene, start_time):
+        self.run_type = "exome-depth_cohort"      
         super().__init__(capture, gene, start_time, normal_panel=True)
-        self.run_type = "exome-depth_cohort"
-        self.output_base, self.docker_output_base = self.base_output_dirs()
 
     def run_workflow(self):
         # write bam locations to file to be read by R script
@@ -44,7 +62,7 @@ class ExomeDepthCohort(ExomeDepthBase):
         with open(f"{self.output_base}/bam_table.txt", "w") as handle:
             writer = csv.DictWriter(handle, fieldnames=["path"], delimiter="\t")
             writer.writeheader()
-            for bam in self.settings["bams"]:
+            for bam in self.settings["normal_bams"]:
                 writer.writerow({"path": bam})
         bam_table = f"{self.docker_output_base}/bam_table.txt"
 
@@ -62,9 +80,18 @@ class ExomeDepthCohort(ExomeDepthBase):
 
 class ExomeDepthCase(ExomeDepthBase):
     def __init__(self, capture, gene, start_time):
+        self.run_type = "exome-depth_case"        
         super().__init__(capture, gene, start_time, normal_panel=False)
-        self.run_type = "exome-depth_case"
-        self.output_base, self.docker_output_base = self.base_output_dirs()
+        self.extra_db_fields = [
+            "nexons",
+            "id",
+            "BF",
+            "reads.expected",
+            "reads.observed",
+            "reads.ratio",
+            "start.p",
+            "end.p",
+        ]
 
         normal_panel_start = self.get_normal_panel_time()
         self.normal_path_base = (
@@ -80,7 +107,7 @@ class ExomeDepthCase(ExomeDepthBase):
         except FileExistsError:
             pass
 
-        for bam in self.settings["bams"]:
+        for bam in self.settings["unknown_bams"]:
             sample_name = self.bam_to_sample[bam]
             self.run_command(
                 [
@@ -92,3 +119,7 @@ class ExomeDepthCase(ExomeDepthBase):
                     f"{self.docker_output_base}/{sample_name}",
                 ]
             )
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+        output_paths = [f"{self.output_base}/{sample_name}.txt" for sample_name in sample_names]
+
+        return output_paths, sample_names

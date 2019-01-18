@@ -11,23 +11,19 @@ from . import utils, base_classes
 
 class Excavator2(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        super().__init__(capture, gene, start_time, normal_panel)
-
-        self.run_type = "excavator2"
-
-        self.output_base, self.docker_output_base = self.base_output_dirs()
-
-        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=False)
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-
+        self.run_type = "excavator2"        
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
+        self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
         self.settings = {
             **self.settings,
             "contig-ploidy-priors": f"/mnt/cnv-caller-resources/gatk/contig-ploidy-priors.tsv",
             "docker_image": "stefpiatek/excavator2:1.1.2",
-            "unknown_bams": docker_bams,
         }
-        self.settings["normal_bams"] = self.settings.pop("bams")
+
+    def parse_output_file(self, file_path, sample_id):
+        with open(file_path) as handle:
+            cnvs = self.parse_vcf(handle, sample_id)
+        return cnvs
 
     def run_workflow(self):
         try:
@@ -90,8 +86,12 @@ class Excavator2(base_classes.BaseCNVTool):
                 "--output-base",
                 self.docker_output_base,
                 "--max-mem",
-                self.settings["max_mem"],
+                self.max_mem,
                 "--max-cpu",
-                self.settings["max_cpu"],
+                self.max_cpu,
             ]
         )
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+        output_paths = [f"{self.output_base}/results/Results/{sample_name}/EXCAVATORRegionCall_{sample_name}.vcf" for sample_name in sample_names]
+
+        return output_paths, sample_names

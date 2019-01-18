@@ -24,20 +24,10 @@ from settings import cnv_pat_settings
 
 class Canvas(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        super().__init__(capture, gene, start_time, normal_panel)
-
         self.run_type = "canvas"
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
 
-        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=False)
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-
-        self.settings = {
-            **self.settings,
-            "docker_image": "stefpiatek/canvas:1.11.0",
-            "unknown_bams": docker_bams,
-        }
-        self.settings["normal_bams"] = self.settings.pop("bams")
+        self.settings = {**self.settings, "docker_image": "stefpiatek/canvas:1.11.0"}
 
     def run_canvas_command(self, args):
         """Creates dir for output and runs a GATK command in docker"""
