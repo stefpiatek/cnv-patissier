@@ -1,0 +1,18 @@
+##fileformat=VCFv4.0
+##fileDate=20191601
+##source=EXCAVATOR2v1.0
+##reference=hg19
+##assembly=ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/sv/breakpoint_assemblies.fasta
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variation">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##ALT=<ID=CNV,Description="Copy number variable region">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=CN,Number=1,Type=Integer,Description="Copy number genotype for imprecise events">
+##FORMAT=<ID=CNF,Number=1,Type=Float,Description="Copy number genotype fraction for imprecise events">
+##FORMAT=<ID=FCL,Number=1,Type=Float,Description="Label Inferred by FastCall algorithm">
+##FORMAT=<ID=FCP,Number=1,Type=Float,Description="Posterior Probability inferred by FastCall algorithm">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	17298
+chr7	513245	.	c	<CNV>	.	PASS	IMPRECISE;SVTYPE=CNV;END=514245;SVLEN=8850000;	GT:CN:CNF:FCL:FCP	1/1:1:2.94:1:1
+chr2	1250	.	c	<CNV>	.	PASS	IMPRECISE;SVTYPE=CNV;END=1350;SVLEN=8850000;	GT:CN:CNF:FCL:FCP	1/1:1:2.94:1:1

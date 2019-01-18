@@ -1,0 +1,4 @@
+start.p	end.p	type	nexons	start	end	chromosome	id	BF	reads.expected	reads.observed	reads.ratio
+34	42	duplication	9	5700	5750	2	chr7:5700-5750	28.3	7791	5101	0.655
+62	62	duplication	1	100	4000	17	chr2:100-4000	4.56	378	220	0.582
+

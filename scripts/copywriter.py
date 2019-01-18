@@ -16,18 +16,10 @@ from . import utils, base_classes
 
 class Copywriter(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        super().__init__(capture, gene, start_time, normal_panel)
+        self.run_type = "copywriter"  
+        super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["num.mark", "unknown", "seg.mean", "control_id"]
-        self.run_type = "copywriter"
-
-        self.output_base, self.docker_output_base = self.base_output_dirs()
-
-        sample_ids, bams = utils.SampleUtils.select_samples(self.gene_list, normal_panel=False)
-        self.bam_mount = utils.SampleUtils.get_mount_point(bams)
-        docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in bams]
-
-        self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0", "unknown_bams": docker_bams}
-        self.settings["normal_bams"] = self.settings.pop("bams")
+        self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0"}
 
     def parse_output_file(self, file_path, sample_id):
         cnvs = []
@@ -44,9 +36,9 @@ class Copywriter(base_classes.BaseCNVTool):
                     cnv["control_id"] = bamfile_to_sample[cnv.pop("control")]
                     cnv["seg.mean"] = float(cnv["seg.mean"])
                     # TODO: set this threshold using ROC curve
-                    if cnv["seg.mean"] <= -1.3:
+                    if cnv["seg.mean"] <= -0.3:
                         cnv["alt"] = "DEL"
-                    elif cnv["seg.mean"] >= 1.3:
+                    elif cnv["seg.mean"] >= 0.3:
                         cnv["alt"] = "DUP"
                     else:
                         continue
@@ -61,8 +53,10 @@ class Copywriter(base_classes.BaseCNVTool):
         # only paired settings so just pair up unknowns with controls at random
         # if it looks good, could use exomedepth choice of normal to select the appropriate control
 
+        sample_names = []
+        output_paths = []
         # assume 3 gb per worker so memory doesn't run out
-        max_workers = min([int(self.settings["max_cpu"]), int(self.settings["max_mem"]) // 3])
+        max_workers = min([int(self.max_cpu), int(self.max_mem) // 3])
         total_batches = len(self.settings["unknown_bams"]) // 30
         if len(self.settings["unknown_bams"]) % 30:
             total_batches += 1
@@ -88,6 +82,9 @@ class Copywriter(base_classes.BaseCNVTool):
                     writer.writerow({"samples": normal_bam, "controls": normal_bam})
                     writer.writerow({"samples": unknown_bam, "controls": normal_bam})
 
+                    sample_names.append(f"{self.bam_to_sample[unknown_bam]}")
+                    output_paths.append(f"{self.output_base}/batch_{batch_number}/results.txt")
+
             base_classes.logger.info(f"Running CopywriteR on batch {batch_number}")
             self.run_command(
                 [
@@ -96,3 +93,6 @@ class Copywriter(base_classes.BaseCNVTool):
                     f"--capture-regions={self.settings['capture_path']}",
                 ]
             )
+
+        return output_paths, sample_names
+
