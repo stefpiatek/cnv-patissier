@@ -18,13 +18,10 @@ from . import utils, base_classes
 
 class XHMM(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        self.run_type = "xhmm"        
+        self.run_type = "xhmm"
         super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
-        self.settings = {
-            **self.settings,
-            "docker_image": "stefpiatek/xhmm:1.0",
-        }
+        self.settings = {**self.settings, "docker_image": "stefpiatek/xhmm:1.0"}
 
     def run_gatk_command(self, args):
         """Create dir for output and runs a GATK command in the XHMM docker"""

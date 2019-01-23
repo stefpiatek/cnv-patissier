@@ -16,7 +16,7 @@ from . import utils, base_classes
 
 class CNVKit(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time):
-        self.run_type = "cnvkit"       
+        self.run_type = "cnvkit"
         super().__init__(capture, gene, start_time, normal_panel=True)
         self.extra_db_fields = ["probes", "cn", "log2", "depth", "weight"]
         self.settings = {**self.settings, "docker_image": "etal/cnvkit:0.9.5"}
@@ -108,4 +108,3 @@ class CNVKit(base_classes.BaseCNVTool):
         sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
 
         return output_paths, sample_names
-

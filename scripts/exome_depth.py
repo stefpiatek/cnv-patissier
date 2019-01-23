@@ -49,7 +49,7 @@ class ExomeDepthBase(base_classes.BaseCNVTool):
 
 class ExomeDepthCohort(ExomeDepthBase):
     def __init__(self, capture, gene, start_time):
-        self.run_type = "exome-depth_cohort"      
+        self.run_type = "exome-depth_cohort"
         super().__init__(capture, gene, start_time, normal_panel=True)
 
     def run_workflow(self):
@@ -80,7 +80,7 @@ class ExomeDepthCohort(ExomeDepthBase):
 
 class ExomeDepthCase(ExomeDepthBase):
     def __init__(self, capture, gene, start_time):
-        self.run_type = "exome-depth_case"        
+        self.run_type = "exome-depth_case"
         super().__init__(capture, gene, start_time, normal_panel=False)
         self.extra_db_fields = [
             "nexons",

@@ -58,7 +58,7 @@ class Gene(Base):
     capture = Column(String)
     chrom = Column(String)
     end = Column(Integer)
-    genome_build = Column(String)    
+    genome_build = Column(String)
     start = Column(Integer)
     name = Column(String)
 

@@ -16,7 +16,7 @@ from . import utils, base_classes
 
 class Copywriter(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        self.run_type = "copywriter"  
+        self.run_type = "copywriter"
         super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["num.mark", "unknown", "seg.mean", "control_id"]
         self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0"}
@@ -95,4 +95,3 @@ class Copywriter(base_classes.BaseCNVTool):
             )
 
         return output_paths, sample_names
-

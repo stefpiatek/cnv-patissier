@@ -18,7 +18,6 @@ class GATKBase(base_classes.BaseCNVTool):
         super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["format_data", "info_data", "id", "ref", "qual", "filter"]
 
-
         self.settings = {
             **self.settings,
             "num_intervals_per_scatter": "10",  # currently not used
@@ -32,7 +31,7 @@ class GATKBase(base_classes.BaseCNVTool):
         with open(file_path) as handle:
             cnvs = self.parse_vcf(handle, sample_id)
         return cnvs
-    
+
     def run_gatk_command(self, args):
         """Create dir for output and runs a GATK command in docker"""
         try:
@@ -49,7 +48,7 @@ class GATKBase(base_classes.BaseCNVTool):
 
 class GATKCase(GATKBase):
     def __init__(self, capture, gene, start_time):
-        self.run_type = "gatk_case"       
+        self.run_type = "gatk_case"
         super().__init__(capture, gene, start_time, normal_panel=False)
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
@@ -158,11 +157,16 @@ class GATKCase(GATKBase):
                     f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+        output_paths = [
+            f"{self.output_base}/PostprocessGermlineCNVCalls/{sample_name}_segments.vcf" for sample_name in sample_names
+        ]
+        return output_paths, sample_names
 
 
 class GATKCohort(GATKBase):
     def __init__(self, cohort, gene, start_time):
-        self.run_type = "gatk_cohort"        
+        self.run_type = "gatk_cohort"
         super().__init__(cohort, gene, start_time, normal_panel=True)
         self.output_base, self.docker_output_base = self.base_output_dirs()
 
@@ -276,7 +280,3 @@ class GATKCohort(GATKBase):
                     f"{post_germline_cnv_caller_dir}/{sample_name}_segments.vcf",
                 ]
             )
-        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
-        output_paths = [f"{self.output_base}/PostprocessGermlineCNVCalls/{sample_name}_segments.vcf" for sample_name in sample_names]
-
-        return output_paths, sample_names
