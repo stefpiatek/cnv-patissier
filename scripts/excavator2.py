@@ -11,7 +11,7 @@ from . import utils, base_classes
 
 class Excavator2(base_classes.BaseCNVTool):
     def __init__(self, capture, gene, start_time, normal_panel=True):
-        self.run_type = "excavator2"        
+        self.run_type = "excavator2"
         super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["id", "ref", "qual", "filter", "format_data", "info_data"]
         self.settings = {
@@ -92,6 +92,9 @@ class Excavator2(base_classes.BaseCNVTool):
             ]
         )
         sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
-        output_paths = [f"{self.output_base}/results/Results/{sample_name}/EXCAVATORRegionCall_{sample_name}.vcf" for sample_name in sample_names]
+        output_paths = [
+            f"{self.output_base}/results/Results/{sample_name}/EXCAVATORRegionCall_{sample_name}.vcf"
+            for sample_name in sample_names
+        ]
 
         return output_paths, sample_names

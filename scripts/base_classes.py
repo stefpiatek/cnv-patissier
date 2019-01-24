@@ -202,7 +202,14 @@ class BaseCNVTool:
         return cnvs
 
     def process_caller_output(self, sample_path, sample_id=None):
-        cnvs = self.parse_output_file(sample_path, sample_id)
+        try:
+            cnvs = self.parse_output_file(sample_path, sample_id)
+        except FileNotFoundError as e:
+            if self.run_type == "excavator2":
+                # excavator2 sometimes doesn't produce vcf file
+                cnvs = []
+            else:
+                raise e
         gene_bed = self.filter_capture()
         filtered_cnvs = self.filter_cnvs(cnvs, gene_bed)
         return filtered_cnvs
@@ -326,13 +333,14 @@ class BaseCNVTool:
         Queries.get_or_create(models.CNV, self.session, defaults=cnv_call)
         caller_instance = self.session.query(models.Caller).filter_by(name=self.run_type).first()
         cnv_instance = self.session.query(models.CNV).filter_by(**cnv_call).first()
-        sample_instance = self.session.query(models.Sample).filter_by(name=sample_name).first()
+        gene_instance = (
+                self.session.query(models.Gene)
+                .filter_by(name=self.gene, capture=self.capture, genome_build=self.settings["genome_build_name"])
+                .first()
+            )
+        sample_instance = self.session.query(models.Sample).filter_by(name=sample_name, gene_id=gene_instance.id).first()
 
-        called_cnv_defaults = dict(
-            caller_id=caller_instance.id,
-            cnv_id=cnv_instance.id,
-            sample_id=sample_instance.id,
-        )
+        called_cnv_defaults = dict(caller_id=caller_instance.id, cnv_id=cnv_instance.id, sample_id=sample_instance.id)
         Queries.update_or_create(models.CalledCNV, self.session, defaults=called_cnv_defaults, json_data=json_data)
         self.session.commit()
 
