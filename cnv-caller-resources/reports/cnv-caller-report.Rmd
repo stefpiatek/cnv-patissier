@@ -1,0 +1,316 @@
+---
+title: "CNV caller report"
+author: "Stef Piatek"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  html_document:
+     keep_md: TRUE
+params:
+  capture: "ICR"
+  
+---
+
+Script to do a quick analysis of specific capture
+
+Example usage from command line:
+
+    Rscript -e "rmarkdown::render('cnv-caller-report.Rmd', params = list(capture = 'ICR'), 'html_document', 'output/ICR_report.html')"
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(DBI)
+library(RSQLite)
+library(tidyverse)
+library(knitr)
+library(here)
+library(broom)
+library(purrr)
+library(glue)
+```
+
+## Parse database to get summary of all output
+
+Connecting to database and grabbing out known positives, known negatives, true positives and false negatives
+
+
+```{r database}
+con <- dbConnect(SQLite(), dbname= here("output", "results.sqlite"))
+
+genes <- con %>%
+  tbl("genes") %>%
+  filter(capture == params$capture) 
+
+positives <- genes %>%
+  left_join(tbl(con, "samples"), by = c("id" = "gene_id"), suffix = c("_gene_join", "")) %>%
+  select(-ends_with("_gene_join")) %>%
+  filter(result_type == "positive")
+
+true_positives <- positives %>%
+  left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
+  collect() %>%
+  mutate(sample_id = id) %>%
+  select(-id)
+
+positives <- positives %>%
+  collect()
+
+# set this up to instead be a list from the run. do this later though
+negatives <-  genes %>%
+  left_join(tbl(con, "samples"), by = c("id" = "gene_id"), suffix = c("_gene_join", "")) %>%
+  select(-ends_with("_gene_join")) %>%
+  filter(result_type == "normal") 
+
+false_negatives <- negatives %>%
+  left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
+  collect() %>%
+  mutate(sample_id = id) %>%
+  select(-id)
+
+negatives <- negatives %>%
+  collect() 
+
+callers <- con %>%
+  tbl("callers") %>%
+  collect()
+
+dbDisconnect(con)
+```
+
+## Caller analysis
+
+Note: Hidden likeihood ratio calculation 
+
+```{r def_likelihood, echo=FALSE}
+likelihood_ratio <- function(a, b, c, d, input_type="plr", input_caller) {
+  # taken from https://stats.stackexchange.com/questions/61349/how-to-calculate-the-confidence-intervals-for-likelihood-ratios-from-a-2x2-table
+  # 
+  alpha <- 0.05
+
+  spec <- d/(b+d)
+  sens <- a/(a+c)
+
+  lr.pos <- sens/(1 - spec)  
+
+  if ( a != 0 & b != 0 ) {
+
+    sigma2 <- (1/a) - (1/(a+c)) + (1/b) - (1/(b+d))
+    lower.pos <- lr.pos * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
+    upper.pos <- lr.pos * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
+
+
+  } else if ( a == 0 & b == 0 ) {
+
+    lower.pos <- 0
+    upper.pos <- Inf
+
+  } else if ( a == 0 & b != 0 ) {
+
+    a.temp <- (1/2)
+
+    spec.temp <- d/(b+d)
+    sens.temp <- a.temp/(a+c)
+    lr.pos.temp <- sens.temp/(1 - spec.temp)  
+    lower.pos <- 0
+    sigma2 <- (1/a.temp) - (1/(a.temp+c)) + (1/b) - (1/(b+d))
+    upper.pos <- lr.pos.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2))
+
+  } else if ( a != 0 & b == 0 ) {
+
+    b.temp <- (1/2)
+    spec.temp <- d/(b.temp+d)
+    sens.temp <- a/(a+c)
+    lr.pos.temp <- sens.temp/(1 - spec.temp) 
+    sigma2 <- (1/a) - (1/(a+c)) + (1/b.temp) - (1/(b.temp+d))
+    lower.pos <- lr.pos.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
+    upper.pos <- Inf  
+
+  } else if ( (a == (a+c)) & (b == (b+d)) ) {
+
+    a.temp <- a - (1/2)
+    b.temp <- b - (1/2)
+    spec.temp <- d/(b.temp+d)
+    sens.temp <- a.temp/(a+c)
+    lr.pos.temp <- sens.temp/(1 - spec.temp) 
+    sigma2 <- (1/a.temp) - (1/(a.temp+c)) + (1/b.temp) - (1/(b.temp+d))
+    lower.pos <- lr.pos.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
+    upper.pos <- lr.pos.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
+
+  }
+
+  lr.neg <- (1 - sens)/spec
+
+  if ( c != 0 & d != 0 ) {
+
+    sigma2 <- (1/c) - (1/(a+c)) + (1/d) - (1/(b+d))
+    lower.neg <- lr.neg * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
+    upper.neg <- lr.neg * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
+
+  } else if ( c == 0 & d == 0 ) {
+
+    lower.neg<- 0
+    upper.neg <- Inf
+
+  } else if ( c == 0 & d != 0 ) {
+
+    c.temp <- (1/2)
+
+    spec.temp <- d/(b+d)
+    sens.temp <- a/(a+c.temp)
+    lr.neg.temp <- (1 - sens.temp)/spec.temp    
+    lower.neg <- 0
+    sigma2 <- (1/c.temp) - (1/(a+c)) + (1/d) - (1/(b+d))
+    upper.neg <- lr.neg.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2))
+
+  } else if ( c != 0 & d == 0 ) {
+
+    d.temp <- (1/2)
+    spec.temp <- d.temp/(b+d)
+    sens.temp <- a/(a+c)
+    lr.neg.temp <- (1 - sens.temp)/spec.temp  
+    sigma2 <- (1/c) - (1/(a+c)) + (1/d.temp) - (1/(b+d))
+    lower.neg <- lr.neg.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
+    upper.neg <- Inf  
+
+  } else if ( (c == (a+c)) & (d == (b+d)) ) {
+
+    c.temp <- c - (1/2)
+    d.temp <- d - (1/2)
+    spec.temp <- d.temp/(b+d)
+    sens.temp <- a/(a+c.temp)
+    lr.neg.temp <- (1 - sens.temp)/spec.temp   
+    sigma2 <- (1/c.temp) - (1/(a+c)) + (1/d.temp) - (1/(b+d))
+    lower.neg <- lr.neg.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
+    upper.neg <- lr.neg.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
+
+  }
+  # Edited code from here
+  if (input_type == "plr"){
+    ratio <- lr.pos
+    lower <- lower.pos
+    upper <- upper.pos
+  } else if (input_type == "nlr"){
+      ratio <- lr.neg
+    lower <- lower.neg
+    upper <- upper.neg
+  }
+  
+  output <- tibble(
+      caller = input_caller,
+      type = input_type,
+      estimate = ratio,
+      conf.low = lower,
+      conf.high = upper,
+      called = NA,
+      total = NA,
+      statistic = NA,
+      p.value = NA,
+      parameter = NA,
+      method = NA,
+      alternative = NA
+      )
+    return(output)
+}
+
+```
+
+Analyse calls and give upper and lower 95% confidence intervals
+
+
+```{r analyse_calls, results='asis'}
+
+get_binom_ci <- function(called_num, total_num, type_name, caller_name){
+  prop.test(called_num, total_num) %>%
+    tidy() %>%
+    mutate(caller = caller_name,
+           total = total_num,
+           called =  called_num,
+           type = type_name) %>%
+    select(caller, type, estimate, conf.low, conf.high, called, total, everything()) %>%
+    return()
+}
+
+analyse_caller <- function(input_caller_id){
+  caller_name <- callers %>%
+    filter(id == input_caller_id) %>%
+    pull(name)
+
+  caller_false_negatives <- false_negatives %>%
+    filter(caller_id == input_caller_id)
+  
+  caller_true_positives <- true_positives %>%
+    filter(caller_id == input_caller_id)
+  
+  # statuses
+  true_pos <- nrow(caller_true_positives)
+  true_neg <- nrow(negatives) - nrow(caller_false_negatives)
+  false_pos <- nrow(negatives) - true_neg
+  false_neg <- nrow(positives) - true_pos
+
+  total_stats <- rbind(
+    get_binom_ci(true_pos, true_pos + false_neg, "sensitivity", caller_name),
+    get_binom_ci(true_neg, false_pos + true_neg, "specificity", caller_name),
+    get_binom_ci(true_pos + true_neg, true_pos + false_neg + false_pos + true_neg, "accuracy", caller_name),
+    ## Must fit with the actual diseas prevalence so not used
+    # get_binom_ci(true_pos, true_pos + false_pos, "ppv", caller_name),
+    # get_binom_ci(true_neg, false_neg + true_neg, "npv", caller_name),
+    likelihood_ratio(true_pos, false_pos, false_neg,  true_neg, "plr", caller_name),
+    likelihood_ratio(true_pos, false_pos, false_neg,  true_neg, "nlr", caller_name)
+    )
+  return(total_stats)
+}
+
+caller_stats <- map_dfr(callers$id, analyse_caller)
+
+
+
+caller_stats %>%
+  select(caller:total) %>%
+  filter(type %in% c("sensitivity", "specificity", "accuracy")) %>%
+  knitr::kable() %>%
+  print()
+  
+caller_stats %>%
+  select(caller:conf.high) %>%
+  filter(type %in% c("plr", "nlr")) %>%
+  knitr::kable() %>%
+  print()
+
+```
+
+Determine threshold for copywriter using ICR data:
+
+0.5 threshold for calling CNVs
+
+
+```{r copywriter}
+
+library(plotROC)
+library(jsonlite)
+
+
+get_seg_mean <- function(json_data){
+  # returns absolute value of seg.mean for copywriter
+  json <- parse_json(json_data)
+  seg_mean <- abs(json$seg.mean)
+  return(seg_mean)
+}
+
+copywriter_data <- false_negatives %>%
+  rbind(true_positives) %>%
+  filter(caller_id == 2) %>%
+  rowwise() %>%
+  mutate(seg_mean = get_seg_mean(json_data)) %>%
+  full_join(positives, by = c("sample_id" = "id", "result_type")) %>%
+  full_join(negatives, by = c("sample_id" = "id", "result_type")) %>%
+  mutate(roc_outcome = if_else(result_type == "normal", 0, 1),
+         seg_mean = if_else(is.na(seg_mean), 0, seg_mean))
+
+ggplot(copywriter_data, aes(d = roc_outcome, m = seg_mean)) +
+  geom_abline(slope=1, intercept=0, colour="grey") +
+  geom_roc(linealpha = 0.3, colour = "#005aac", cutoffs.at = c(0:10 * 0.1, 2)) +
+  theme_bw() +
+  ylab("Sensitivity") +
+  xlab("1 - Specificity") 
+```
+

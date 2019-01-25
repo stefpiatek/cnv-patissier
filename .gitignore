@@ -14,6 +14,7 @@ tests/coverage_html/
 *.gz
 docker-images/*
 !docker-images/*/Dockerfile
+*.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
