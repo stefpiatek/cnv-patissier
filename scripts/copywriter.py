@@ -35,10 +35,10 @@ class Copywriter(base_classes.BaseCNVTool):
                     cnv["sample_id"] = sample_id
                     cnv["control_id"] = bamfile_to_sample[cnv.pop("control")]
                     cnv["seg.mean"] = float(cnv["seg.mean"])
-                    # TODO: set this threshold using ROC curve
-                    if cnv["seg.mean"] <= -0.3:
+                    # Determined using ROC curve
+                    if cnv["seg.mean"] <= -0.5:
                         cnv["alt"] = "DEL"
-                    elif cnv["seg.mean"] >= 0.3:
+                    elif cnv["seg.mean"] >= 0.5:
                         cnv["alt"] = "DUP"
                     else:
                         continue

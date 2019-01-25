@@ -2,9 +2,12 @@
 title: "CNV caller report"
 author: "Stef Piatek"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
-output: html_document
+output: 
+  html_document:
+     keep_md: TRUE
 params:
   capture: "ICR"
+  
 ---
 
 Script to do a quick analysis of specific capture
@@ -28,6 +31,7 @@ library(glue)
 
 ## Parse database to get summary of all output
 
+Connecting to database and grabbing out known positives, known negatives, true positives and false negatives
 
 
 ```{r database}
@@ -46,8 +50,7 @@ true_positives <- positives %>%
   left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
   collect() %>%
   mutate(sample_id = id) %>%
-  select(-id) %>%
-  drop_na()
+  select(-id)
 
 positives <- positives %>%
   collect()
@@ -62,8 +65,7 @@ false_negatives <- negatives %>%
   left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
   collect() %>%
   mutate(sample_id = id) %>%
-  select(-id) %>%
-  drop_na()
+  select(-id)
 
 negatives <- negatives %>%
   collect() 
@@ -76,6 +78,9 @@ dbDisconnect(con)
 ```
 
 ## Caller analysis
+
+Note: Hidden likeihood ratio calculation 
+
 ```{r def_likelihood, echo=FALSE}
 likelihood_ratio <- function(a, b, c, d, input_type="plr", input_caller) {
   # taken from https://stats.stackexchange.com/questions/61349/how-to-calculate-the-confidence-intervals-for-likelihood-ratios-from-a-2x2-table
@@ -209,6 +214,7 @@ likelihood_ratio <- function(a, b, c, d, input_type="plr", input_caller) {
 
 ```
 
+Analyse calls and give upper and lower 95% confidence intervals
 
 
 ```{r analyse_calls, results='asis'}
@@ -271,3 +277,40 @@ caller_stats %>%
   print()
 
 ```
+
+Determine threshold for copywriter using ICR data:
+
+0.5 threshold for calling CNVs
+
+
+```{r copywriter}
+
+library(plotROC)
+library(jsonlite)
+
+
+get_seg_mean <- function(json_data){
+  # returns absolute value of seg.mean for copywriter
+  json <- parse_json(json_data)
+  seg_mean <- abs(json$seg.mean)
+  return(seg_mean)
+}
+
+copywriter_data <- false_negatives %>%
+  rbind(true_positives) %>%
+  filter(caller_id == 2) %>%
+  rowwise() %>%
+  mutate(seg_mean = get_seg_mean(json_data)) %>%
+  full_join(positives, by = c("sample_id" = "id", "result_type")) %>%
+  full_join(negatives, by = c("sample_id" = "id", "result_type")) %>%
+  mutate(roc_outcome = if_else(result_type == "normal", 0, 1),
+         seg_mean = if_else(is.na(seg_mean), 0, seg_mean))
+
+ggplot(copywriter_data, aes(d = roc_outcome, m = seg_mean)) +
+  geom_abline(slope=1, intercept=0, colour="grey") +
+  geom_roc(linealpha = 0.3, colour = "#005aac", cutoffs.at = c(0:10 * 0.1, 2)) +
+  theme_bw() +
+  ylab("Sensitivity") +
+  xlab("1 - Specificity") 
+```
+
