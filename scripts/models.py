@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Column, Integer, String, UniqueConstraint, Text, DateTime, sql
+from sqlalchemy import ForeignKey, Column, Integer, Interval, String, UniqueConstraint, Text, DateTime
 from sqlalchemy.orm import relationship
 
 from .db_session import Base
@@ -82,9 +82,9 @@ class Run(Base):
     __tablename__ = "runs"
     id = Column(Integer, primary_key=True)
     caller_id = Column(Integer, ForeignKey("callers.id", ondelete="CASCADE"), nullable=False)
-    end_time = Column(DateTime)
+    duration = Column(Interval)
     gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
-    start_time = Column(DateTime)
+    samples = Column(Text)
 
     __table_args__ = (UniqueConstraint(caller_id, gene_id),)
 
