@@ -3,6 +3,7 @@ Base class for running of a CNV tool - each tool inherits from this class
 """
 
 import csv
+import datetime
 import glob
 import json
 import os
@@ -51,23 +52,15 @@ class BaseCNVTool:
             normal_sample_ids, normal_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=True)
             unknown_sample_ids, unknown_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
             self.bam_mount = utils.SampleUtils.get_mount_point(unknown_bams + normal_bams)
-            normal_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in normal_bams]            
+            normal_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in normal_bams]
             unknown_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in unknown_bams]
 
             bam_to_sample = utils.SampleUtils.get_bam_to_id(self.sample_sheet)
             self.bam_to_sample = {
                 f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id
                 for (bam, sample_id) in bam_to_sample.items()
-            }            
+            }
             self.sample_to_bam = {sample_id: bam for (bam, sample_id) in self.bam_to_sample.items()}
-            
-            with open(self.sample_sheet) as handle:
-                sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
-                capture_file = set(f"{row['capture_name']}.bed" for row in sample_sheet)
-                assert len(capture_file) == 1, (
-                    "Single capture file should be used for all samples within a sample sheet"
-                    f"Gene {gene} has multiple captures for its samples, please fix this and run again "
-                )
 
             self.settings = {
                 "normal_bams": normal_docker_bams,
@@ -79,8 +72,10 @@ class BaseCNVTool:
                 "capture": capture,
                 "gene": gene,
                 "start_time": start_time,
-                "capture_path": f"/mnt/input/{capture}/bed/{capture_file.pop()}",
-                "unknown_bams": unknown_docker_bams
+                # To add in after sure all genes run correctly
+                # "sample_sheet_md5sum": self.get_md5sum(self.sample_sheet),
+                "capture_path": f"/mnt/input/{capture}/bed/{capture}.bed",
+                "unknown_bams": unknown_docker_bams,
             }
 
     def base_output_dirs(self):
@@ -152,6 +147,16 @@ class BaseCNVTool:
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
         return f"{normal_config['start_time']}"
+
+    def get_normal_panel_duration(self):
+        normal_path = (
+            f"{cnv_pat_dir}/successful-run-settings/{self.capture}/"
+            f"{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
+        )
+        with open(normal_path) as handle:
+            normal_config = toml.load(handle)
+        duration = normal_config["end_datetime"] - normal_config["start_datetime"]
+        return duration
 
     def parse_output_file(file_path, sample_id=None):
         """Dummy method to be overwritten by each CNV-caller class"""
@@ -250,7 +255,8 @@ class BaseCNVTool:
             return True
         with open(previous_run_settings_path) as handle:
             previous_settings = toml.load(handle)
-            previous_settings.pop("start_time")
+            for field in ["start_time", "start_datetime", "end_datetime"]:
+                previous_settings.pop(field)
             current_settings = dict(self.settings)
             current_settings.pop("start_time")
             if current_settings != previous_settings:
@@ -334,14 +340,39 @@ class BaseCNVTool:
         caller_instance = self.session.query(models.Caller).filter_by(name=self.run_type).first()
         cnv_instance = self.session.query(models.CNV).filter_by(**cnv_call).first()
         gene_instance = (
-                self.session.query(models.Gene)
-                .filter_by(name=self.gene, capture=self.capture, genome_build=self.settings["genome_build_name"])
-                .first()
-            )
-        sample_instance = self.session.query(models.Sample).filter_by(name=sample_name, gene_id=gene_instance.id).first()
+            self.session.query(models.Gene)
+            .filter_by(name=self.gene, capture=self.capture, genome_build=self.settings["genome_build_name"])
+            .first()
+        )
+        sample_instance = (
+            self.session.query(models.Sample).filter_by(name=sample_name, gene_id=gene_instance.id).first()
+        )
 
         called_cnv_defaults = dict(caller_id=caller_instance.id, cnv_id=cnv_instance.id, sample_id=sample_instance.id)
         Queries.update_or_create(models.CalledCNV, self.session, defaults=called_cnv_defaults, json_data=json_data)
+        self.session.commit()
+
+    def upload_run_data(self, sample_names):
+        gene_instance = (
+            self.session.query(models.Gene)
+            .filter_by(name=self.gene, capture=self.capture, genome_build=self.settings["genome_build_name"])
+            .first()
+        )
+        caller_instance = self.session.query(models.Caller).filter_by(name=self.run_type).first()
+        sample_ids = []
+        for sample_name in sample_names:
+            sample_instance = (
+                self.session.query(models.Sample).filter_by(name=sample_name, gene_id=gene_instance.id).first()
+            )
+            sample_ids.append(sample_instance.id)
+
+        duration = self.settings["end_datetime"] - self.settings["start_datetime"]
+        if self.run_type.endswith("case"):
+            duration += self.get_normal_panel_duration()
+
+        run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
+        upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
+        Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
         self.session.commit()
 
     @logger.catch(reraise=True)
@@ -351,11 +382,17 @@ class BaseCNVTool:
         )
         if self.run_required(previous_run_settings_path):
             if self.run_type.endswith("cohort"):
+                self.settings["start_datetime"] = datetime.datetime.now()
                 self.run_workflow()
+                self.settings["end_datetime"] = datetime.datetime.now()
             else:
+                self.settings["start_datetime"] = datetime.datetime.now()
                 output_paths, sample_ids = self.run_workflow()
+                self.settings["end_datetime"] = datetime.datetime.now()
                 self.upload_all_known_data()
                 self.upload_all_called_cnvs(output_paths, sample_ids)
+                self.upload_run_data(sample_ids)
+                # self.upload_file_data()
             self.write_settings_toml()
 
     def write_settings_toml(self):
