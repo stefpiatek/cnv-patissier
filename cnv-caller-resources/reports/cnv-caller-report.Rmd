@@ -27,6 +27,9 @@ library(here)
 library(broom)
 library(purrr)
 library(glue)
+library(ggsci)
+
+capture_is_icr <- params$capture == "ICR"
 ```
 
 ## Parse database to get summary of all output
@@ -262,6 +265,26 @@ analyse_caller <- function(input_caller_id){
 
 caller_stats <- map_dfr(callers$id, analyse_caller)
 
+caller_stats %>%
+  filter(type %in% c("accuracy", "sensitivity", "specificity")) %>%
+  ggplot(aes(x=caller, colour=caller)) +
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high)) +
+  geom_point(aes(y=estimate)) +
+  facet_wrap(~type, scales = "free_y") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ggsci::scale_colour_nejm() 
+
+caller_stats %>%
+  filter(!type %in% c("accuracy", "sensitivity", "specificity")) %>%
+  filter(!caller %in% c("copywriter", "xhmm")) %>%
+  ggplot(aes(x=caller, colour=caller)) +
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high)) +
+  geom_point(aes(y=estimate)) +
+  facet_wrap(~type, scales = "free_y") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ggsci::scale_colour_nejm() 
 
 
 caller_stats %>%
@@ -276,14 +299,15 @@ caller_stats %>%
   knitr::kable() %>%
   print()
 
+
 ```
 
-Determine threshold for copywriter using ICR data:
+Determine threshold for copywriter if ICR data is being used:
 
 0.5 threshold for calling CNVs
 
 
-```{r copywriter}
+```{r copywriter, eval=capture_is_icr}
 
 library(plotROC)
 library(jsonlite)
@@ -311,6 +335,12 @@ ggplot(copywriter_data, aes(d = roc_outcome, m = seg_mean)) +
   geom_roc(linealpha = 0.3, colour = "#005aac", cutoffs.at = c(0:10 * 0.1, 2)) +
   theme_bw() +
   ylab("Sensitivity") +
-  xlab("1 - Specificity") 
+  xlab("1 - Specificity")
+save.image(here("output", params$capture, "copywriter_threshold.RData"))
+
+```
+
+```{r save_data}
+save.image(here("output", params$capture, "caller_analysis.RData"))
 ```
 
