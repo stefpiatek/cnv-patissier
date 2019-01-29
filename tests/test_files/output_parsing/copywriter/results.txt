@@ -3,5 +3,5 @@ sample_1_sorted.bam	sample_control_sorted.bam	2	4301	-2.6262	5700	5750
 sample_1_sorted.bam	sample_control_sorted.bam	17	4575	-2.6551	100	4000
 sample_2_sorted.bam	sample_control_sorted.bam	2	4301	2.6262	5700	5750
 sample_2_sorted.bam	sample_control_sorted.bam	17	4575	2.6551	100	4000
-sample_3_sorted.bam	sample_control_sorted.bam	2	4301	0.6262	5700	5750
-sample_3_sorted.bam	sample_control_sorted.bam	17	4575	0.6551	100	4000
+sample_3_sorted.bam	sample_control_sorted.bam	2	4301	0.1262	5700	5750
+sample_3_sorted.bam	sample_control_sorted.bam	17	4575	-0.1551	100	4000

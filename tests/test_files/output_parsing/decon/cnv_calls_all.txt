@@ -1,0 +1,5 @@
+CNV.ID	Sample	Correlation	N.comp	Start.b	End.b	CNV.type	N.exons	Start	End	Chromosome	Genomic.ID	BF	Reads.expected	Reads.observed	Reads.ratio	Gene
+1	del_sorted	0.9972	22	34	42	deletion	9	5700	5750	chr2	chrchr2:5700-5750	28.3	7791	5101	0.655	example_gene
+2	del_sorted	0.9971	14	62	62	deletion	1	100	4000	chr17	chrchr17:100-4000	4.56	378	220	0.582	example_gene
+1	dup_sorted	0.9972	22	34	42	duplication	9	5700	5750	chr2	chrchr2:5700-5750	28.3	7791	5101	0.655	example_gene
+2	dup_sorted	0.9971	14	62	62	duplication	1	100	4000	chr17	chrchr17:100-4000	4.56	378	220	0.582	example_gene
