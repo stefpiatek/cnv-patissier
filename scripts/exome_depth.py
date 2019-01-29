@@ -123,3 +123,50 @@ class ExomeDepthCase(ExomeDepthBase):
         output_paths = [f"{self.output_base}/{sample_name}.txt" for sample_name in sample_names]
 
         return output_paths, sample_names
+
+
+class ExomeDepthTransitionCase(ExomeDepthBase):
+    def __init__(self, capture, gene, start_time):
+        self.run_type = "exome-depth_transition_case"
+        super().__init__(capture, gene, start_time, normal_panel=False)
+        self.extra_db_fields = [
+            "nexons",
+            "id",
+            "BF",
+            "reads.expected",
+            "reads.observed",
+            "reads.ratio",
+            "start.p",
+            "end.p",
+        ]
+
+        normal_panel_start = self.get_normal_panel_time()
+        self.normal_path_base = (
+            f"/mnt/output/{self.capture}/{normal_panel_start}/{self.run_type.replace('transition_case', 'cohort')}/{self.gene}"
+        )
+
+        self.settings = {**self.settings, "normal_panel_start_time": normal_panel_start}
+
+    def run_workflow(self):
+        # write bam locations to file to be read by R script
+        try:
+            os.makedirs(self.output_base)
+        except FileExistsError:
+            pass
+
+        for bam in self.settings["unknown_bams"]:
+            sample_name = self.bam_to_sample[bam]
+            self.run_command(
+                [
+                    f"--bam={bam}",
+                    f"--sample-name={sample_name}",
+                    f"--cohort-rdata={self.normal_path_base}/cohort.Rdata",
+                    f"--min-mapq={self.settings['min_mapq']}",
+                    "--out-base",
+                    f"{self.docker_output_base}/{sample_name}",
+                ]
+            )
+        sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
+        output_paths = [f"{self.output_base}/{sample_name}.txt" for sample_name in sample_names]
+
+        return output_paths, sample_names

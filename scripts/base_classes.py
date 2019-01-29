@@ -139,10 +139,15 @@ class BaseCNVTool:
         header = str(samtools.stdout, "utf-8")
         return header
 
+    def get_md5sum(self, file_path):
+        md5 = subprocess.run(["md5sum", file_path], check=True, stdout=subprocess.PIPE)
+        md5sum, _ = str(md5.stdout, "utf-8").split()
+        return md5sum
+
     def get_normal_panel_time(self):
         normal_path = (
             f"{cnv_pat_dir}/successful-run-settings/{self.capture}/"
-            f"{self.run_type.replace('case', 'cohort')}/{self.gene}.toml"
+            f"{self.run_type.replace('case', 'cohort').replace('transition_', '')}/{self.gene}.toml"
         )
         with open(normal_path) as handle:
             normal_config = toml.load(handle)
