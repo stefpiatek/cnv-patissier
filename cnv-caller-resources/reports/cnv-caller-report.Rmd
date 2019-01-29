@@ -53,7 +53,10 @@ true_positives <- positives %>%
   left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
   collect() %>%
   mutate(sample_id = id) %>%
-  select(-id)
+  select(-id) %>%
+  group_by(caller_id, sample_id) %>%
+  slice(which.min(id_called_cnv)) %>%
+  ungroup()
 
 positives <- positives %>%
   collect()
@@ -68,7 +71,10 @@ false_negatives <- negatives %>%
   left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
   collect() %>%
   mutate(sample_id = id) %>%
-  select(-id)
+  select(-id) %>%
+  group_by(caller_id, sample_id) %>%
+  slice(which.min(id_called_cnv)) %>%
+  ungroup()
 
 negatives <- negatives %>%
   collect() 
@@ -76,6 +82,7 @@ negatives <- negatives %>%
 callers <- con %>%
   tbl("callers") %>%
   collect()
+
 
 dbDisconnect(con)
 ```
@@ -341,6 +348,7 @@ save.image(here("output", params$capture, "copywriter_threshold.RData"))
 ```
 
 ```{r save_data}
+
 save.image(here("output", params$capture, "caller_analysis.RData"))
 ```
 
