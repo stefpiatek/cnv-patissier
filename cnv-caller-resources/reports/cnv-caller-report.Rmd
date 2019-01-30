@@ -93,8 +93,10 @@ Note: Hidden likeihood ratio calculation
 
 ```{r def_likelihood, echo=FALSE}
 likelihood_ratio <- function(a, b, c, d, input_type="plr", input_caller) {
-  # taken from https://stats.stackexchange.com/questions/61349/how-to-calculate-the-confidence-intervals-for-likelihood-ratios-from-a-2x2-table
-  # 
+# Taken from https://stats.stackexchange.com/questions/61349/
+# Question author: Chloe T, https://stats.stackexchange.com/users/26701/
+# Response author: COOLSerdash, https://stats.stackexchange.com/users/21054/
+
   alpha <- 0.05
 
   spec <- d/(b+d)
