@@ -12,7 +12,7 @@ from scripts.base_classes import Queries, BaseCNVTool
 # global application scope.  create Session class, engine
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.yield_fixture(scope="class", autouse=True)
 def cleanup_after_xhmm():
     vcf_path = "tests/test_files/output_parsing/xhmm/DATA.vcf"
     yield
@@ -33,10 +33,10 @@ def db():
     os.remove(db_path)
 
 
-@pytest.yield_fixture(scope="class")
+@pytest.yield_fixture(scope="class", autouse=True)
 def db_session(db):
     """
-    Creates a new database session for a test. 
+    Creates a new database session for a test.
     https://docs.sqlalchemy.org/en/latest/orm/session_transaction.html#joining-a-session-into-an-external-transaction-such-as-for-test-suites
     """
     # create db_session
@@ -46,7 +46,7 @@ def db_session(db):
     # not sure about rollback, maybe look into later but not really bothered for now
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="class", autouse=True)
 def populate_db(db):
     caller = BaseCNVTool("capture", "gene", "time")
     session = caller.session
