@@ -6,9 +6,7 @@ Copyright (C) 2017 VU University Medical Center Amsterdam
 Author: Roy Straver (github.com/rstraver)
 https://github.com/VUmcCGP/wisexome/blob/master/LICENSE.md
 
-
-
-Note: only has paired sample mode, so normal samples are just randomly paired with unknowns
+WISExome not implemented because of bugs in code
 """
 
 import csv
