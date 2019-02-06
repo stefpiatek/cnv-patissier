@@ -18,12 +18,15 @@ RUN wget -q https://github.com/samtools/samtools/releases/download/1.9/samtools-
     && cd /samtools-1.9/ \
     && ./configure && make \
     && mv /samtools-1.9/samtools /bin/ \
-    && rm -rf /samtools-1.9
+    && rm -rf /samtools-1.9 
 
-COPY . /usr/
-
-RUN R CMD SHLIB /usr/EXCAVATOR2_Package_v1.1.2/lib/F77/F4R.f; \
-    R CMD SHLIB /usr/EXCAVATOR2_Package_v1.1.2/lib/F77/FastJointSLMLibraryI.f;
+RUN cd /usr \
+    && wget --no-check-certificate https://sourceforge.net/projects/excavator2tool/files/EXCAVATOR2_Package_v1.1.2.tgz \
+    && tar zxvf EXCAVATOR2_Package_v1.1.2.tgz \
+    && R CMD SHLIB /usr/EXCAVATOR2_Package_v1.1.2/lib/F77/F4R.f \
+    && R CMD SHLIB /usr/EXCAVATOR2_Package_v1.1.2/lib/F77/FastJointSLMLibraryI.f \
+    && wget --no-check-certificate -O /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.bw "https://www.dropbox.com/s/djltemd4pb1051x/ucsc.hg19.bw?dl=1" \
+    && wget  --no-check-certificate -O /usr/EXCAVATOR2_Package_v1.1.2/data/GCA_000001405.15_GRCh38.bw "https://www.dropbox.com/s/soshiqrayggu2bb/GCA_000001405.15_GRCh38.bw?dl=1"
 
 ENV PATH $PATH:/usr/EXCAVATOR2_Package_v1.1.2
 

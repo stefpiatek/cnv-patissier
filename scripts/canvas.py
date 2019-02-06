@@ -180,7 +180,7 @@ class Canvas(base_classes.BaseCNVTool):
             )
             self.run_docker_subprocess(
                 [
-                    "python3.6",
+                    "python3.7",
                     f"/mnt/cnv-caller-resources/canvas/canvas_clean_writer.py",
                     "--output-base",
                     sample_out,
