@@ -1,6 +1,10 @@
-# later versions have errors in dependency installation for CopywriteR
-FROM r-base:3.2.5  
+FROM r-base:3.5.1  
 
-RUN R -e "install.packages(c('optparse', 'dplyr', 'tidyr', 'stringr')); source('http://bioconductor.org/biocLite.R'); biocLite('CopywriteR');"
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libcurl4-openssl-dev libxml2-dev libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN R -e "install.packages(c('optparse', 'dplyr', 'tidyr', 'stringr', 'BiocManager')); \
+    BiocManager::install('CopywriteR', version = '3.8');" 
 
 CMD ["bash"]

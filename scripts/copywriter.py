@@ -19,7 +19,7 @@ class Copywriter(base_classes.BaseCNVTool):
         self.run_type = "copywriter"
         super().__init__(capture, gene, start_time, normal_panel=normal_panel)
         self.extra_db_fields = ["num.mark", "unknown", "seg.mean", "control_id"]
-        self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.2.0"}
+        self.settings = {**self.settings, "docker_image": "stefpiatek/copywriter:2.14.1"}
 
     def parse_output_file(self, file_path, sample_id):
         cnvs = []

@@ -12,8 +12,6 @@ successful-run-settings/
 tests/coverage_html/
 ! tests/coverage_html/.gitkeep
 *.gz
-docker-images/*
-!docker-images/*/Dockerfile
 *.html
 
 # Byte-compiled / optimized / DLL files
