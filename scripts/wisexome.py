@@ -46,7 +46,20 @@ class WISExome(base_classes.BaseCNVTool):
             for index, chromosome in enumerate(all_chromosomes):
                 with open(self.settings["capture_path"].replace("/mnt", base_classes.cnv_pat_dir), "r") as bed_input:
                     if not any([line.startswith(chromosome) for line in bed_input]):
-                        bed_output.write("\t".join([chromosome, "1000000", "1100000", "dummy\n", chromosome, "2000000", "2100000", "dummy\n"]))
+                        bed_output.write(
+                            "\t".join(
+                                [
+                                    chromosome,
+                                    "1000000",
+                                    "1100000",
+                                    "dummy\n",
+                                    chromosome,
+                                    "2000000",
+                                    "2100000",
+                                    "dummy\n",
+                                ]
+                            )
+                        )
             with open(self.settings["capture_path"].replace("/mnt", base_classes.cnv_pat_dir), "r") as bed_input:
                 for line in bed_input:
                     bed_output.write(f"{line}")
@@ -54,19 +67,18 @@ class WISExome(base_classes.BaseCNVTool):
         for data_type in ["unknown", "normal"]:
             local_hit_dir = pathlib.Path(self.output_base, "consam", data_type)
             local_hit_dir.mkdir(exist_ok=True, parents=True)
-            hit_dir = pathlib.Path(self.docker_output_base, "consam", data_type)            
+            hit_dir = pathlib.Path(self.docker_output_base, "consam", data_type)
             for bam_file in self.settings[f"{data_type}_bams"]:
                 sample_name = self.bam_to_sample[bam_file]
-                self.run_command(["consam.py", bam_file, docker_extra_chroms_bed, 
-                    f"{hit_dir / sample_name}.hits"])
+                self.run_command(["consam.py", bam_file, docker_extra_chroms_bed, f"{hit_dir / sample_name}.hits"])
 
             local_normalised_hits = pathlib.Path(self.output_base, "lennormalize", data_type)
             local_normalised_hits.mkdir(exist_ok=True, parents=True)
             normalised_hits = pathlib.Path(self.docker_output_base, "lennormalize", data_type)
 
             self.run_command(["lennormalize.py", f"{hit_dir}", docker_extra_chroms_bed, f"{normalised_hits}"])
-      
-        # This step doesn't work if a chromosome doesn't have a target on it, 
+
+        # This step doesn't work if a chromosome doesn't have a target on it,
         autosomes = list(range(1, 23))
         x_and_autosomes = autosomes + ["X"]
 
@@ -75,14 +87,18 @@ class WISExome(base_classes.BaseCNVTool):
         for target in autosomes[::-1]:
             for ref in autosomes:
                 if target != ref:
-                    self.run_command(["prepref.py",  
-                        f"{self.docker_output_base}/lennormalize/normal/", 
-                        f"{reference_data_dir}/{target}.{ref}.ref",
-                        f"chr{target}", f"chr{ref}"])
+                    self.run_command(
+                        [
+                            "prepref.py",
+                            f"{self.docker_output_base}/lennormalize/normal/",
+                            f"{reference_data_dir}/{target}.{ref}.ref",
+                            f"chr{target}",
+                            f"chr{ref}",
+                        ]
+                    )
 
         ref_base = f"{self.docker_output_base}/takeref/refname"
         # step fails here because X chromosome isn't in reference set (prepref step)
         # step above fails if you put X chromosome
         # beyond scope of this project to fix the code for this project
         self.run_command(["takeref.py", f"{self.docker_output_base}/prepref", ref_base])
-
