@@ -63,7 +63,7 @@ pseudo_sample <- apply(Y_non_zero, 1, function(x) {prod(x) ^ (1 / length(x))})
 N <- apply(apply(Y_non_zero, 2, function(x) {x / pseudo_sample}), 2, median)
 plot(N, apply(Y, 2, sum), xlab="Estimated library size factor", ylab="Total sum of reads")
 
-# genome_wide normalisation
+# Reference sample normalisation
 norm_object <- normalize_codex2_ns(Y_qc = Y_qc, gc_qc = gc_qc, K = 1:10, norm_index = normal_panel_index, N = N)
 
 Yhat <- norm_object$Yhat
