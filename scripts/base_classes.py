@@ -46,7 +46,7 @@ class BaseCNVTool:
             # will not be done during pytest running of tests
             self.max_cpu = cnv_pat_settings["max_cpu"]
             self.max_mem = cnv_pat_settings["max_mem"]
-            self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}_samples.txt"
+            self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}.txt"
             self.output_base, self.docker_output_base = self.base_output_dirs()
 
             normal_sample_ids, normal_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=True)
