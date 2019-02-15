@@ -4,7 +4,7 @@ Orchestrates your Copy Number Variant (CNV) bakeoff, part of research project fo
 
 ## Overview
 
-This project is aimed to collect data on the ability of CNV callers (targeted-capture Next Generation Sequencing) to detect clinically relevant CNVs. All samples should have a gold-standard known-CNV status for the gene in question. This project is aimed at bioinformaticians working genetics laboratories but please let me know via the issues if there are any problems in installation or running, regardless. 
+This project is aimed to collect data on the ability of CNV callers (targeted-capture Next Generation Sequencing) to detect clinically relevant CNVs. All samples should have a gold-standard known-CNV status for the gene in question. This project is aimed at bioinformaticians working in genetics laboratories but please let me know via the issues if there are any problems in installation or running, regardless. 
 
 ## Installation 
 
@@ -124,7 +124,7 @@ At least Python3.6 and Docker (at least engine 1.10) are required for this proje
     - The known CNV status and called CNVs are saved in a sqlite database in `cnv-patissier/output/` 
     - A successful run settings file is written to `cnv-patissier/successful-run-settings/<capture>/<cnv-caller>/<gene>.toml`
     - Logs are written to `cnv-patissier/logs/`
-- Each caller checks if there as been a successful run for that gene, if there has an no settings have changed (i.e. sample paths) then it moves onto the next. 
+- Each caller checks if there has been a successful run for that gene, if there has and no settings have changed (i.e. sample paths) then it moves onto the next. 
 - If there hasn't been a successful run  the caller is run on that gene.
 - If the settings have changed, the previous output will be deleted and the caller will be rerun. If you want to force a rerun, just delete the releveant successful run settings file. 
 
