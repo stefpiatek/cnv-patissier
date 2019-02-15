@@ -24,7 +24,7 @@ class GATKBase(base_classes.BaseCNVTool):
             "padding": "50",
             "ref_copy_number_autosomal_contigs": "2",
             "contig-ploidy-priors": f"/mnt/cnv-caller-resources/gatk/contig-ploidy-priors.tsv",
-            "docker_image": "broadinstitute/gatk:4.0.11.0",
+            "docker_image": "broadinstitute/gatk:4.1.0.0",
         }
 
     def parse_output_file(self, file_path, sample_id):
