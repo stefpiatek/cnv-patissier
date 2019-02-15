@@ -1,0 +1,76 @@
+sample_id	sample_path	result_type	cnv_call	chromosome	start	end
+17327	/mnt/example/path/icr-mlpa/aligned/17327.sorted.bam	normal-panel				
+17328	/mnt/example/path/icr-mlpa/aligned/17328.sorted.bam	normal-panel				
+17329	/mnt/example/path/icr-mlpa/aligned/17329.sorted.bam	normal-panel				
+17330	/mnt/example/path/icr-mlpa/aligned/17330.sorted.bam	normal-panel				
+17398	/mnt/example/path/icr-mlpa/aligned/17398.sorted.bam	positive	DUP	chr17	41234421	41234592
+17334	/mnt/example/path/icr-mlpa/aligned/17334.sorted.bam	normal				
+17341	/mnt/example/path/icr-mlpa/aligned/17341.sorted.bam	normal				
+17375	/mnt/example/path/icr-mlpa/aligned/17375.sorted.bam	normal				
+17299	/mnt/example/path/icr-mlpa/aligned/17299.sorted.bam	normal-panel				
+17308	/mnt/example/path/icr-mlpa/aligned/17308.sorted.bam	normal-panel				
+17304	/mnt/example/path/icr-mlpa/aligned/17304.sorted.bam	normal				
+17343	/mnt/example/path/icr-mlpa/aligned/17343.sorted.bam	normal				
+17305	/mnt/example/path/icr-mlpa/aligned/17305.sorted.bam	normal				
+17306	/mnt/example/path/icr-mlpa/aligned/17306.sorted.bam	positive	DEL	chr17	41209069	41209152
+17339	/mnt/example/path/icr-mlpa/aligned/17339.sorted.bam	normal-panel				
+17337	/mnt/example/path/icr-mlpa/aligned/17337.sorted.bam	normal				
+17310	/mnt/example/path/icr-mlpa/aligned/17310.sorted.bam	normal-panel				
+17332	/mnt/example/path/icr-mlpa/aligned/17332.sorted.bam	normal				
+17311	/mnt/example/path/icr-mlpa/aligned/17311.sorted.bam	normal-panel				
+17312	/mnt/example/path/icr-mlpa/aligned/17312.sorted.bam	normal-panel				
+17313	/mnt/example/path/icr-mlpa/aligned/17313.sorted.bam	normal-panel				
+17314	/mnt/example/path/icr-mlpa/aligned/17314.sorted.bam	normal-panel				
+17318	/mnt/example/path/icr-mlpa/aligned/17318.sorted.bam	normal				
+17315	/mnt/example/path/icr-mlpa/aligned/17315.sorted.bam	normal-panel				
+17340	/mnt/example/path/icr-mlpa/aligned/17340.sorted.bam	positive	DUP	chr17	41251792	41258550
+17324	/mnt/example/path/icr-mlpa/aligned/17324.sorted.bam	normal				
+17335	/mnt/example/path/icr-mlpa/aligned/17335.sorted.bam	normal				
+17317	/mnt/example/path/icr-mlpa/aligned/17317.sorted.bam	positive	DEL	chr17	41267743	41267796
+17331	/mnt/example/path/icr-mlpa/aligned/17331.sorted.bam	normal				
+17303	/mnt/example/path/icr-mlpa/aligned/17303.sorted.bam	normal				
+17307	/mnt/example/path/icr-mlpa/aligned/17307.sorted.bam	normal				
+17301	/mnt/example/path/icr-mlpa/aligned/17301.sorted.bam	normal				
+17309	/mnt/example/path/icr-mlpa/aligned/17309.sorted.bam	normal-panel				
+17326	/mnt/example/path/icr-mlpa/aligned/17326.sorted.bam	positive	DEL	chr17	41201138	41201211
+17302	/mnt/example/path/icr-mlpa/aligned/17302.sorted.bam	positive	DEL	chr17	41256139	41258550
+17320	/mnt/example/path/icr-mlpa/aligned/17320.sorted.bam	positive	DEL	chr17	41197695	41197819
+17300	/mnt/example/path/icr-mlpa/aligned/17300.sorted.bam	normal-panel				
+17388	/mnt/example/path/icr-mlpa/aligned/17388.sorted.bam	normal				
+17387	/mnt/example/path/icr-mlpa/aligned/17387.sorted.bam	normal-panel				
+17402	/mnt/example/path/icr-mlpa/aligned/17402.sorted.bam	normal				
+17400	/mnt/example/path/icr-mlpa/aligned/17400.sorted.bam	positive	DEL	chr17	41197695	41203134
+17362	/mnt/example/path/icr-mlpa/aligned/17362.sorted.bam	positive	DUP	chr17	41234421	41234592
+17298	/mnt/example/path/icr-mlpa/aligned/17298.sorted.bam	normal				
+17373	/mnt/example/path/icr-mlpa/aligned/17373.sorted.bam	normal-panel				
+17376	/mnt/example/path/icr-mlpa/aligned/17376.sorted.bam	normal-panel				
+17382	/mnt/example/path/icr-mlpa/aligned/17382.sorted.bam	normal-panel				
+17397	/mnt/example/path/icr-mlpa/aligned/17397.sorted.bam	normal-panel				
+17360	/mnt/example/path/icr-mlpa/aligned/17360.sorted.bam	normal-panel				
+17399	/mnt/example/path/icr-mlpa/aligned/17399.sorted.bam	normal-panel				
+17392	/mnt/example/path/icr-mlpa/aligned/17392.sorted.bam	normal				
+17361	/mnt/example/path/icr-mlpa/aligned/17361.sorted.bam	normal-panel				
+17342	/mnt/example/path/icr-mlpa/aligned/17342.sorted.bam	normal				
+17356	/mnt/example/path/icr-mlpa/aligned/17356.sorted.bam	normal-panel				
+17377	/mnt/example/path/icr-mlpa/aligned/17377.sorted.bam	normal				
+17371	/mnt/example/path/icr-mlpa/aligned/17371.sorted.bam	positive	DEL	chr17	41209069	41209152
+17386	/mnt/example/path/icr-mlpa/aligned/17386.sorted.bam	normal				
+17390	/mnt/example/path/icr-mlpa/aligned/17390.sorted.bam	normal				
+17378	/mnt/example/path/icr-mlpa/aligned/17378.sorted.bam	normal				
+17401	/mnt/example/path/icr-mlpa/aligned/17401.sorted.bam	normal-panel				
+17370	/mnt/example/path/icr-mlpa/aligned/17370.sorted.bam	normal-panel				
+17379	/mnt/example/path/icr-mlpa/aligned/17379.sorted.bam	normal				
+17393	/mnt/example/path/icr-mlpa/aligned/17393.sorted.bam	normal				
+17333	/mnt/example/path/icr-mlpa/aligned/17333.sorted.bam	positive	DEL	chr17	41234421	41234592
+17385	/mnt/example/path/icr-mlpa/aligned/17385.sorted.bam	normal				
+17391	/mnt/example/path/icr-mlpa/aligned/17391.sorted.bam	normal-panel				
+17389	/mnt/example/path/icr-mlpa/aligned/17389.sorted.bam	normal-panel				
+17367	/mnt/example/path/icr-mlpa/aligned/17367.sorted.bam	normal-panel				
+17368	/mnt/example/path/icr-mlpa/aligned/17368.sorted.bam	normal-panel				
+17359	/mnt/example/path/icr-mlpa/aligned/17359.sorted.bam	normal				
+17403	/mnt/example/path/icr-mlpa/aligned/17403.sorted.bam	positive	DEL	chr17	41219625	41219712
+17394	/mnt/example/path/icr-mlpa/aligned/17394.sorted.bam	positive	DEL	chr17	41276034	41277387
+17384	/mnt/example/path/icr-mlpa/aligned/17384.sorted.bam	positive	DEL	chr17	41242961	41243049
+17396	/mnt/example/path/icr-mlpa/aligned/17396.sorted.bam	normal				
+17369	/mnt/example/path/icr-mlpa/aligned/17369.sorted.bam	positive	DEL	chr17	41222945	41223255
+17316	/mnt/example/path/icr-mlpa/aligned/17316.sorted.bam	normal				
