@@ -154,8 +154,8 @@ At least Python3.6 and Docker (at least engine 1.10) are required for this proje
     - The column names are: 
         - sample_id: unique name for the sample
         - sample_path: full path to the bam file
-        - result_type :  samples that are known to have no CNVs can be either `normal_panel` or `normal`. Samples which have a CNV are `positive`
-            - There should be at least 30 `normal_panel` samples, as many `positive` samples and a similar number of `normal` samples
+        - result_type :  samples that are known to have no CNVs can be either `normal-panel` or `normal`. Samples which have a CNV are `positive`
+            - There should be at least 30 `normal-panel` samples, as many `positive` samples and a similar number of `normal` samples
         - Data for positive CNV samples:
             - cnv_call: if dupliation `DUP`, if deletion `DEL`. If you really have no way of knowing, please put `unknown`
             - chromosome: check prefix matches bed file, and reference genome. Can be left blank
