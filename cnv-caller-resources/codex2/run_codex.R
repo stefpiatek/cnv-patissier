@@ -28,8 +28,10 @@ ref <- bams_object$ref
 
 # GC and mappability
 if(opt$chrom_prefix == "chr"){
+    library(BSgenome.Hsapiens.UCSC.hg19)
     genome <- BSgenome.Hsapiens.UCSC.hg19
 } else {
+    library(BSgenome.Hsapiens.1000genomes.hs37d5)
     genome <- BSgenome.Hsapiens.1000genomes.hs37d5
 }
 

@@ -66,10 +66,10 @@ class CNVKit(base_classes.BaseCNVTool):
                 self.settings["ref_fasta"],
                 "--output-reference",
                 f"{self.docker_output_base}/reference.cnn",
-                "--output-dir",
-                f"{self.docker_output_base}/batch-results/",
                 "-p",
                 f"{self.max_cpu}",
+                "--output-dir",
+                f"{self.docker_output_base}/batch-results/",                
             ]
         )
 

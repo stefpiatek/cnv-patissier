@@ -68,7 +68,7 @@ class BaseCNVTool:
                 "genome_build_name": cnv_pat_settings["genome_build_name"],
                 "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
                 "docker_image": None,
-                "chromosome_prefix": "chr",
+                "chromosome_prefix": cnv_pat_settings["chromosome_prefix"],
                 "capture": capture,
                 "gene": gene,
                 "start_time": start_time,

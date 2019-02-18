@@ -7,7 +7,9 @@ library(stringr)
 option_list <- list(
     make_option(c('--max-cpu'), type = "numeric", default = NULL),
     make_option(c('--output-path'), type = "character", default = NULL),
-    make_option(c('--capture-regions'), type = "character", default = NULL)
+    make_option(c('--capture-regions'), type = "character", default = NULL),
+    make_option(c('--chromosome-prefix'), type = "character", default = NULL)
+
 )
 
 opt <- parse_args(OptionParser(option_list = option_list), convert_hyphens_to_underscores = TRUE)
@@ -21,14 +23,22 @@ preCopywriteR(
     output.folder = file.path(opt$output_path),
     bin.size = 50000,
     ref.genome = "hg19",
-    prefix = "chr"
+    prefix = opt$chromosome_prefix
 )
+
+
+if(opt$chromosome_prefix == "chr"){
+    reference_name <- "hg19_50kb_chr"
+} else {
+    reference_name <- "hg19_50kb"
+}
+
 
 # Calculate read depth
 CopywriteR(
     sample.control = all_samples,
     destination.folder = file.path(opt$output_path),
-    reference.folder = file.path(opt$output_path, "hg19_50kb_chr"),
+    reference.folder = file.path(opt$output_path, reference_name),
     capture.regions.file = opt$capture_regions,
     bp.param = bp.param,
     keep.intermediary.files = FALSE
