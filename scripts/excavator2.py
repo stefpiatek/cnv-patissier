@@ -33,7 +33,7 @@ class Excavator2(base_classes.BaseCNVTool):
         prepared_bed_file = f"{self.output_base}/capture.bed"
         extra_chroms_bed = f"{self.output_base}/capture_with_mock.bed"
         docker_extra_chroms_bed = f"{self.output_base}/capture_with_mock.bed"
-        chromosomes = [f"chr{chrom}" for chrom in list(range(1, 23)) + ["X"]]
+        chromosomes = [f"{self.settings['chromosome_prefix']}{chrom}" for chrom in list(range(1, 23)) + ["X"]]
         with open(extra_chroms_bed, "w") as bed_output:
             for index, chromosome in enumerate(chromosomes):
                 with open(self.settings["capture_path"].replace("/mnt", base_classes.cnv_pat_dir), "r") as bed_input:
@@ -44,12 +44,18 @@ class Excavator2(base_classes.BaseCNVTool):
                     bed_output.write(f"{line}")
 
         docker_prepared_bed_file = prepared_bed_file.replace(self.output_base, self.docker_output_base)
-        with (open(prepared_bed_file.replace(".bed", ".sorted"), "w")) as handle:
+        with open(prepared_bed_file.replace(".bed", ".sorted"), "w") as handle:
             subprocess.run(f"sort -k1,1 -k2,2n {docker_extra_chroms_bed}", shell=True, check=True, stdout=handle)
 
         source_target = f"{self.output_base}/SourceTarget.txt"
+
+        if self.settings["chromosome_prefix"] == "chr":
+            complexity_bigwig = "ucsc.hg19.bw"
+        elif self.settings["chromosome_prefix"] == "":
+            complexity_bigwig = "grch37.bw"
+
         with open(source_target, "w") as handle:
-            handle.write(f"/usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.bw {self.settings['ref_fasta']}")
+            handle.write(f"/usr/EXCAVATOR2_Package_v1.1.2/data/{complexity_bigwig} {self.settings['ref_fasta']}")
 
         with open(prepared_bed_file, "w") as handle:
             self.run_docker_subprocess(

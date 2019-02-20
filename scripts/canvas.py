@@ -12,7 +12,7 @@ This requires GenomeSize.xml in genome dir and kmer.fa genome.fa, though I don't
 in large comparison set so don't add to requirements until initial comparison
 
 
-TODO make capture be capture and then rewrite all of panel or normals to be written above line
+Have not implemented "chr" prefixed chromosomes at this point as not used
 """
 
 import subprocess

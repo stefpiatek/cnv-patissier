@@ -40,7 +40,7 @@ class DECoN(base_classes.BaseCNVTool):
             for row in output:
                 if row["Sample"] == bam_name:
                     cnv = dict(row)
-                    cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv.pop('Chromosome').replace('chr', '')}"
+                    cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv.pop('Chromosome').lstrip('chr')}"
                     cnv["start"] = cnv.pop("Start")
                     cnv["end"] = cnv.pop("End")
                     cnv["sample_id"] = sample_id

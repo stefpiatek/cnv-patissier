@@ -41,7 +41,7 @@ class BaseCNVTool:
         self.gene = gene
 
         if "PYTEST_CURRENT_TEST" in os.environ.keys():
-            self.settings = {}
+            self.settings = {"chromosome_prefix": "chr"}
         else:
             # will not be done during pytest running of tests
             self.max_cpu = cnv_pat_settings["max_cpu"]
@@ -68,7 +68,7 @@ class BaseCNVTool:
                 "genome_build_name": cnv_pat_settings["genome_build_name"],
                 "intervals": f"/mnt/input/{capture}/bed/{gene}.bed",
                 "docker_image": None,
-                "chromosome_prefix": "chr",
+                "chromosome_prefix": cnv_pat_settings["chromosome_prefix"],
                 "capture": capture,
                 "gene": gene,
                 "start_time": start_time,

@@ -23,7 +23,10 @@ class GATKBase(base_classes.BaseCNVTool):
             "num_intervals_per_scatter": "10",  # currently not used
             "padding": "50",
             "ref_copy_number_autosomal_contigs": "2",
-            "contig-ploidy-priors": f"/mnt/cnv-caller-resources/gatk/contig-ploidy-priors.tsv",
+            "contig-ploidy-priors": (
+                "/mnt/cnv-caller-resources/gatk/"
+                f"contig-ploidy-priors_prefix-{self.settings['chromosome_prefix']}.tsv"
+            ),
             "docker_image": "broadinstitute/gatk:4.1.0.0",
         }
 

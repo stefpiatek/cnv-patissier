@@ -25,8 +25,18 @@ RUN cd /usr \
     && tar zxvf EXCAVATOR2_Package_v1.1.2.tgz \
     && R CMD SHLIB /usr/EXCAVATOR2_Package_v1.1.2/lib/F77/F4R.f \
     && R CMD SHLIB /usr/EXCAVATOR2_Package_v1.1.2/lib/F77/FastJointSLMLibraryI.f \
-    && wget --no-check-certificate -O /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.bw "https://www.dropbox.com/s/djltemd4pb1051x/ucsc.hg19.bw?dl=1" \
-    && wget  --no-check-certificate -O /usr/EXCAVATOR2_Package_v1.1.2/data/GCA_000001405.15_GRCh38.bw "https://www.dropbox.com/s/soshiqrayggu2bb/GCA_000001405.15_GRCh38.bw?dl=1"
+    && wget --no-check-certificate -O /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.bw "https://www.dropbox.com/s/djltemd4pb1051x/ucsc.hg19.bw?dl=1" 
+
+# GRCh37 wig file for complexity masking
+RUN wget --no-check-certificate http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/bigWigToWig \
+    && wget --no-check-certificate  http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/wigToBigWig \
+    && wget --no-check-certificate -O /usr/EXCAVATOR2_Package_v1.1.2/data/hg19.chrom.sizes http://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.chrom.sizes \
+    && sed 's/chr//' /usr/EXCAVATOR2_Package_v1.1.2/data/hg19.chrom.sizes > /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.sizes \
+    && chmod +x *Wig* \
+    && ./bigWigToWig /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.bw /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.wig \
+    && sed s'/^chr//' /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.wig > /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.wig \
+    && ./wigToBigWig /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.wig /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.sizes /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.bw
+
 
 ENV PATH $PATH:/usr/EXCAVATOR2_Package_v1.1.2
 

@@ -91,6 +91,7 @@ class Copywriter(base_classes.BaseCNVTool):
                     f"--max-cpu={max_workers}",
                     f"--output-path={docker_batch_output}",
                     f"--capture-regions={self.settings['capture_path']}",
+                    f"--chromosome-prefix={self.settings['chromosome_prefix']}",
                 ]
             )
 
