@@ -28,15 +28,17 @@ ref <- bams_object$ref
 
 # GC and mappability
 if(opt$chrom_prefix == "chr"){
-    library(BSgenome.Hsapiens.UCSC.hg19)
     genome <- BSgenome.Hsapiens.UCSC.hg19
+    mapp <- getmapp(ref, genome)
 } else {
+    # Use hg19 mappability scores if grch37
+    hg19_genome <- BSgenome.Hsapiens.UCSC.hg19
+    mapp <- getmapp(ref, hg19_genome)
     library(BSgenome.Hsapiens.1000genomes.hs37d5)
     genome <- BSgenome.Hsapiens.1000genomes.hs37d5
 }
 
 gc <- getgc(ref, genome)
-mapp <- getmapp(ref, genome)
 gene <- bed_df$name
 values(ref) <- cbind(values(ref), DataFrame(gc, mapp, gene))  
 
