@@ -41,7 +41,7 @@ class BaseCNVTool:
         self.gene = gene
 
         if "PYTEST_CURRENT_TEST" in os.environ.keys():
-            self.settings = {}
+            self.settings = {"chromosome_prefix": "chr"}
         else:
             # will not be done during pytest running of tests
             self.max_cpu = cnv_pat_settings["max_cpu"]
