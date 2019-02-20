@@ -34,8 +34,8 @@ RUN wget --no-check-certificate http://hgdownload.soe.ucsc.edu/admin/exe/linux.x
     && sed 's/chr//' /usr/EXCAVATOR2_Package_v1.1.2/data/hg19.chrom.sizes > /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.sizes \
     && chmod +x *Wig* \
     && ./bigWigToWig /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.bw /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.wig \
-    && sed s'/^chr//' /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.wig > /usr/EXCAVATOR2_Package_v1.1.2/data/grhc37.wig \
-    && ./wigToBigWig /usr/EXCAVATOR2_Package_v1.1.2/data/grhc37.wig /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.sizes /usr/EXCAVATOR2_Package_v1.1.2/data/grhc37.bw
+    && sed s'/^chr//' /usr/EXCAVATOR2_Package_v1.1.2/data/ucsc.hg19.wig > /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.wig \
+    && ./wigToBigWig /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.wig /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.sizes /usr/EXCAVATOR2_Package_v1.1.2/data/grch37.bw
 
 
 ENV PATH $PATH:/usr/EXCAVATOR2_Package_v1.1.2
