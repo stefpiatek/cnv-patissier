@@ -48,12 +48,12 @@ class Excavator2(base_classes.BaseCNVTool):
             subprocess.run(f"sort -k1,1 -k2,2n {docker_extra_chroms_bed}", shell=True, check=True, stdout=handle)
 
         source_target = f"{self.output_base}/SourceTarget.txt"
-       
+
         if self.settings["chromosome_prefix"] == "chr":
             complexity_bigwig = "ucsc.hg19.bw"
         elif self.settings["chromosome_prefix"] == "":
             complexity_bigwig = "grch37.bw"
-            
+
         with open(source_target, "w") as handle:
             handle.write(f"/usr/EXCAVATOR2_Package_v1.1.2/data/{complexity_bigwig} {self.settings['ref_fasta']}")
 
