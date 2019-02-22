@@ -3,7 +3,7 @@ import datetime
 import pathlib
 
 from scripts.db_session import DbSession
-from scripts import utils, copywriter, codex2, cnv_kit, decon, excavator2, exome_depth, gatk, xhmm
+from scripts import utils, copywriter, codex2, cnv_kit, decon, excavator2, exome_depth, gatk, savvy_cnv, xhmm
 
 
 
@@ -45,6 +45,8 @@ if __name__ == "__main__":
         cnv_caller.main()
         cnv_caller = gatk.GATKCase(capture_name, gene, start_time)
         cnv_caller.main()
+        cnv_caller = savvy_cnv.SavvyCNV(capture_name, gene, start_time)
+        cnv_caller.main()        
         cnv_caller = xhmm.XHMM(capture_name, gene, start_time)
         cnv_caller.main()
 print("Congrats, you're all done")
