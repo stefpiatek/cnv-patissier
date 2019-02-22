@@ -4,7 +4,7 @@ ENV CLASSPATH=/usr/GenomeAnalysisTK-3.8-1-0-gf15c1c3ef/GenomeAnalysisTK.jar:/usr
 
 # install GATK
 RUN wget -O /usr/gatk.tar.bz2 "https://software.broadinstitute.org/gatk/download/auth?package=GATK-archive&version=3.8-1-0-gf15c1c3ef" \
-    && tar -xjf /usr/gatk.tar.bz2 -C /usr/ \
+    && tar -xjf /usr/gatk.tar.bz2 -C /usr/ 
 
 # install savvy cnv
 RUN apt-get update \
