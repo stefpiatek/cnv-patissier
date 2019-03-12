@@ -9,7 +9,7 @@ from scripts.savvy_cnv import SavvyCNV
 class TestParseOutputFile:
     def setup(self):
         self.caller = SavvyCNV("capture", "gene_1", "time", normal_panel=True)
-        self.caller.docker_output_base = "/mnt/output/capture/time/savvycnv/gene_1/"
+        self.caller.docker_output_base = "/mnt/output/capture/time/savvycnv/gene_1"
         self.output_file = pathlib.Path("tests/test_files/output_parsing/savvy_cnv/cnv_calls.txt")
         self.del_expected_output = [
             {
@@ -23,6 +23,7 @@ class TestParseOutputFile:
                 "normalised_phred": "1.145961443",
                 "relative_dosage": "0.555971128",
                 "coverage_filename": "/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/del.coverageBinner",
+                "sample_id": "del",
             },
             {
                 "chrom": "chr17",
@@ -35,6 +36,7 @@ class TestParseOutputFile:
                 "normalised_phred": "23.05782883",
                 "relative_dosage": "0.555971128",
                 "coverage_filename": "/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/del.coverageBinner",
+                "sample_id": "del",
             },
         ]
 
@@ -46,6 +48,7 @@ class TestParseOutputFile:
         expected_output = list(self.del_expected_output)
         for row in expected_output:
             row["alt"] = "DUP"
+            row["sample_id"] = "dup"
             row["relative_dosage"] = "1.339272793"
             row["coverage_filename"] = "/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/dup.coverageBinner"
 

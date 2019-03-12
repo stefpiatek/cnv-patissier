@@ -26,7 +26,7 @@ class SavvyCNV(base_classes.BaseCNVTool):
 
     def parse_output_file(self, file_path, sample_id):
         call_fields = ["chrom", "start", "end", "call", *self.extra_db_fields]
-        coverage_filename = f"{self.docker_output_base}CoverageBinner/{sample_id}.coverageBinner"
+        coverage_filename = f"{self.docker_output_base}/CoverageBinner/{sample_id}.coverageBinner"
         cnvs = []
 
         with open(file_path, "r") as handle:
@@ -35,6 +35,7 @@ class SavvyCNV(base_classes.BaseCNVTool):
                 if row["coverage_filename"] == coverage_filename:
                     cnv = dict(row)
                     cnv["chrom"] = f"{self.settings['chromosome_prefix']}{cnv['chrom'].lstrip('chr')}"
+                    cnv["sample_id"] = sample_id
                     call = cnv.pop("call")
                     if call == "Deletion":
                         cnv["alt"] = "DEL"
