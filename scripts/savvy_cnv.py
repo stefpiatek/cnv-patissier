@@ -66,7 +66,7 @@ class SavvyCNV(base_classes.BaseCNVTool):
                 self.run_command(["CoverageBinner", bam], stdout=handle)
 
         with open(f"{self.output_base}/cnv_calls.txt", "w") as handle:
-            self.run_command(["SavvyCNV", "-d", "200000", *docker_coverage_files], stdout=handle)
+            self.run_command(["SavvyCNV", "-d", "400", "-trans", "0.01", *docker_coverage_files], stdout=handle)
 
         sample_names = [f"{self.bam_to_sample[unknown_bam]}" for unknown_bam in self.settings["unknown_bams"]]
         output_paths = [f"{self.output_base}/cnv_calls.txt" for sample_name in sample_names]
