@@ -1,0 +1,4 @@
+chr2	5700	5750	Deletion	10	618	708.2041717	1.145961443	0.555971128	/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/del.coverageBinner
+chr17	100	4000	Deletion	2	5	115.2891442	23.05782883	0.555971128	/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/del.coverageBinner
+chr2	5700	5750	Duplication	10	618	708.2041717	1.145961443	1.339272793	/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/dup.coverageBinner
+chr17	100	4000	Duplication	2	5	115.2891442	23.05782883	1.339272793	/mnt/output/capture/time/savvycnv/gene_1/CoverageBinner/dup.coverageBinner
