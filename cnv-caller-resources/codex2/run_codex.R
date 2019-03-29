@@ -61,27 +61,21 @@ gc_qc <- ref_qc$gc
 
 write.table(qcmat, file = file.path(opt$output_path, "qcmat.txt"), sep = "\t", quote = FALSE, row.names = FALSE)
 
+
 # Library size estimate for each sample
 Y_non_zero <- Y_qc[apply(Y_qc, 1, function(x) {!any(x == 0)}), ]
-pseudo_sample <- apply(Y_non_zero, 1, function(x) {prod(x) ^ (1 / length(x))})
+pseudo_sample <- apply(Y_non_zero, 1, function(x) {prod(x ^ (1 / length(x)))})  # changed to avoid product being maximum value r can take (> 1.7e308)
 N <- apply(apply(Y_non_zero, 2, function(x) {x / pseudo_sample}), 2, median)
-plot(N, apply(Y, 2, sum), xlab="Estimated library size factor", ylab="Total sum of reads")
 
 # Reference sample normalisation
 norm_object <- normalize_codex2_ns(Y_qc = Y_qc, gc_qc = gc_qc, K = 1:10, norm_index = normal_panel_index, N = N)
+
 
 Yhat <- norm_object$Yhat
 AIC <- norm_object$AIC
 BIC <- norm_object$BIC
 RSS <- norm_object$RSS
 
-# Number of latent factors
-choiceofK(AIC, BIC, RSS, K = 1:10 , filename = "codex2_choiceofK.pdf")
-par(mfrow = c(1, 3))
-plot(1:10, RSS, type = "b", xlab = "Number of latent variables", pch=20)
-plot(1:10, AIC, type = "b", xlab = "Number of latent variables", pch=20)
-plot(1:10, BIC, type = "b", xlab = "Number of latent variables", pch=20)
-par(mfrow = c(1, 1))
 
 # CBS segmentation per gene for targeted seq
 source("/mnt/cnv-caller-resources/codex2/segment_targeted.R")
