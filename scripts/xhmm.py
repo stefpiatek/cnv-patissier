@@ -5,8 +5,8 @@ Defaults used from XHMM documentation https://atgu.mgh.harvard.edu/xhmm/tutorial
 - no parallism at the moment
 - no repeat masking using PLINK/Seq
 - Altered filtering to allow for high read depth
-   - Max target read depth: 1000
-   - Max sample mean read depth: 1000
+   - Max target read depth: 100,000
+   - Max sample mean read depth: 100,000
    - Max sample SD read depth: 300
 """
 
@@ -57,7 +57,7 @@ class XHMM(base_classes.BaseCNVTool):
             )
 
         sample_vcf = self.run_docker_subprocess(
-            ["bcftools", "view", "-c1", "-Ov", "-s", sample_id, f"{docker_file_path}.gz"],
+            ["bcftools", "view", "-c1", "-Ov", "--force-samples", "-s", sample_id, f"{docker_file_path}.gz"],
             docker_image="halllab/bcftools:v1.9",
             stdout=subprocess.PIPE,
         )
@@ -171,11 +171,11 @@ class XHMM(base_classes.BaseCNVTool):
                 "--minMeanTargetRD",
                 "10",
                 "--maxMeanTargetRD",
-                "1000",
+                "100000",
                 "--minMeanSampleRD",
                 "25",
                 "--maxMeanSampleRD",
-                "1000",
+                "100000",
                 "--maxSdSampleRD",
                 "300",
                 "-o",
