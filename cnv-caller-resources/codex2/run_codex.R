@@ -98,10 +98,14 @@ for(genei in unique(ref_qc$gene)){
 
 cn <- (as.numeric(as.matrix(final_call[, "copy_no"])))
 
-# removing calls with fractional copy numbers close to 2 (for heterogeneous cancer samples)
+# removing calls with fractional copy numbers close to 2
 cn_filter <- (cn <= 1.7) | (cn >=2.3) 
 
 final_call  <- final_call[cn_filter, ]
+if(class(final_call) == "character"){
+  # if only 1 CNV, becomes a named character vector so convert to df
+  final_call <- data.frame(as.list(final_call))  
+}
 length_exon <- as.numeric(final_call[, "ed_exon"])-as.numeric(final_call[,"st_exon"])+1
 final_call <- cbind(final_call[, 1:7], length_exon, final_call[, 10:14])
 
