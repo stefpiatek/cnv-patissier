@@ -6,7 +6,7 @@ output:
   html_document:
      keep_md: TRUE
 params:
-  capture: "ICR"
+  capture: "multi"
   
 ---
 
@@ -19,8 +19,7 @@ Example usage from command line:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(DBI)
-library(RSQLite)
+
 library(tidyverse)
 library(knitr)
 library(here)
@@ -38,53 +37,37 @@ Connecting to database and grabbing out known positives, known negatives, true p
 
 
 ```{r database}
-con <- dbConnect(SQLite(), dbname= here("output", "results.sqlite"))
-
-genes <- con %>%
-  tbl("genes") %>%
-  filter(capture == params$capture) 
-
-positives <- genes %>%
-  left_join(tbl(con, "samples"), by = c("id" = "gene_id"), suffix = c("_gene_join", "")) %>%
-  select(-ends_with("_gene_join")) %>%
-  filter(result_type == "positive")
-
-true_positives <- positives %>%
-  left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
-  collect() %>%
-  mutate(sample_id = id) %>%
-  select(-id) %>%
-  group_by(caller_id, sample_id) %>%
-  slice(which.min(id_called_cnv)) %>%
-  ungroup()
-
-positives <- positives %>%
-  collect()
-
-# set this up to instead be a list from the run. do this later though
-negatives <-  genes %>%
-  left_join(tbl(con, "samples"), by = c("id" = "gene_id"), suffix = c("_gene_join", "")) %>%
-  select(-ends_with("_gene_join")) %>%
-  filter(result_type == "normal") 
-
-false_negatives <- negatives %>%
-  left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
-  collect() %>%
-  mutate(sample_id = id) %>%
-  select(-id) %>%
-  group_by(caller_id, sample_id) %>%
-  slice(which.min(id_called_cnv)) %>%
-  ungroup()
-
-negatives <- negatives %>%
-  collect() 
-
-callers <- con %>%
-  tbl("callers") %>%
-  collect()
+source(here::here("helper_functions", "database.R"))
+# note filtering out cnv 37 from minipanel for BRCA1 and CNV 115 for BRCA2. GATK called in all samples
 
 
-dbDisconnect(con)
+if (params$capture != "multi"){
+  database_path <- here("../../output", glue("{params$capture}.sqlite"))
+  
+  true_positives <- get_true_positives(database_path )
+  positives <- get_positives(database_path)
+  false_negatives <- get_false_negatives(database_path) 
+  negatives <- get_negatives(database_path)
+  callers <- get_callers_list(database_path) %>%
+    pull(name)
+} else {
+  captures <- here("../../output", paste0(c("ICR_n2", "MiniPanel", "Cancer_v1"), ".sqlite"))
+  # purr
+  
+  true_positives <- map_dfr(.x = captures, .f = get_true_positives) 
+  positives <- map_dfr(.x = captures, .f = get_positives)
+  false_negatives <- map_dfr(.x = captures, .f = get_false_negatives) 
+  negatives <- map_dfr(.x = captures, .f = get_negatives)
+  callers <- map_df(.x = captures, .f = get_callers_list) %>%
+    pull(name) %>%
+    as.factor() %>%
+    levels()
+
+}
+
+
+
+
 ```
 
 ## Caller analysis
@@ -92,137 +75,7 @@ dbDisconnect(con)
 Note: Hidden likeihood ratio calculation 
 
 ```{r def_likelihood, echo=FALSE}
-likelihood_ratio <- function(a, b, c, d, input_type="plr", input_caller) {
-# Taken from https://stats.stackexchange.com/questions/61349/
-# Question author: Chloe T, https://stats.stackexchange.com/users/26701/
-# Response author: COOLSerdash, https://stats.stackexchange.com/users/21054/
-
-  alpha <- 0.05
-
-  spec <- d/(b+d)
-  sens <- a/(a+c)
-
-  lr.pos <- sens/(1 - spec)  
-
-  if ( a != 0 & b != 0 ) {
-
-    sigma2 <- (1/a) - (1/(a+c)) + (1/b) - (1/(b+d))
-    lower.pos <- lr.pos * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
-    upper.pos <- lr.pos * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
-
-
-  } else if ( a == 0 & b == 0 ) {
-
-    lower.pos <- 0
-    upper.pos <- Inf
-
-  } else if ( a == 0 & b != 0 ) {
-
-    a.temp <- (1/2)
-
-    spec.temp <- d/(b+d)
-    sens.temp <- a.temp/(a+c)
-    lr.pos.temp <- sens.temp/(1 - spec.temp)  
-    lower.pos <- 0
-    sigma2 <- (1/a.temp) - (1/(a.temp+c)) + (1/b) - (1/(b+d))
-    upper.pos <- lr.pos.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2))
-
-  } else if ( a != 0 & b == 0 ) {
-
-    b.temp <- (1/2)
-    spec.temp <- d/(b.temp+d)
-    sens.temp <- a/(a+c)
-    lr.pos.temp <- sens.temp/(1 - spec.temp) 
-    sigma2 <- (1/a) - (1/(a+c)) + (1/b.temp) - (1/(b.temp+d))
-    lower.pos <- lr.pos.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
-    upper.pos <- Inf  
-
-  } else if ( (a == (a+c)) & (b == (b+d)) ) {
-
-    a.temp <- a - (1/2)
-    b.temp <- b - (1/2)
-    spec.temp <- d/(b.temp+d)
-    sens.temp <- a.temp/(a+c)
-    lr.pos.temp <- sens.temp/(1 - spec.temp) 
-    sigma2 <- (1/a.temp) - (1/(a.temp+c)) + (1/b.temp) - (1/(b.temp+d))
-    lower.pos <- lr.pos.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
-    upper.pos <- lr.pos.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
-
-  }
-
-  lr.neg <- (1 - sens)/spec
-
-  if ( c != 0 & d != 0 ) {
-
-    sigma2 <- (1/c) - (1/(a+c)) + (1/d) - (1/(b+d))
-    lower.neg <- lr.neg * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
-    upper.neg <- lr.neg * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
-
-  } else if ( c == 0 & d == 0 ) {
-
-    lower.neg<- 0
-    upper.neg <- Inf
-
-  } else if ( c == 0 & d != 0 ) {
-
-    c.temp <- (1/2)
-
-    spec.temp <- d/(b+d)
-    sens.temp <- a/(a+c.temp)
-    lr.neg.temp <- (1 - sens.temp)/spec.temp    
-    lower.neg <- 0
-    sigma2 <- (1/c.temp) - (1/(a+c)) + (1/d) - (1/(b+d))
-    upper.neg <- lr.neg.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2))
-
-  } else if ( c != 0 & d == 0 ) {
-
-    d.temp <- (1/2)
-    spec.temp <- d.temp/(b+d)
-    sens.temp <- a/(a+c)
-    lr.neg.temp <- (1 - sens.temp)/spec.temp  
-    sigma2 <- (1/c) - (1/(a+c)) + (1/d.temp) - (1/(b+d))
-    lower.neg <- lr.neg.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
-    upper.neg <- Inf  
-
-  } else if ( (c == (a+c)) & (d == (b+d)) ) {
-
-    c.temp <- c - (1/2)
-    d.temp <- d - (1/2)
-    spec.temp <- d.temp/(b+d)
-    sens.temp <- a/(a+c.temp)
-    lr.neg.temp <- (1 - sens.temp)/spec.temp   
-    sigma2 <- (1/c.temp) - (1/(a+c)) + (1/d.temp) - (1/(b+d))
-    lower.neg <- lr.neg.temp * exp(-qnorm(1-(alpha/2))*sqrt(sigma2))
-    upper.neg <- lr.neg.temp * exp(qnorm(1-(alpha/2))*sqrt(sigma2)) 
-
-  }
-  # Edited code from here
-  if (input_type == "plr"){
-    ratio <- lr.pos
-    lower <- lower.pos
-    upper <- upper.pos
-  } else if (input_type == "nlr"){
-      ratio <- lr.neg
-    lower <- lower.neg
-    upper <- upper.neg
-  }
-  
-  output <- tibble(
-      caller = input_caller,
-      type = input_type,
-      estimate = ratio,
-      conf.low = lower,
-      conf.high = upper,
-      called = NA,
-      total = NA,
-      statistic = NA,
-      p.value = NA,
-      parameter = NA,
-      method = NA,
-      alternative = NA
-      )
-    return(output)
-}
+source(here::here("helper_functions", "likelihood_ratio.R"))
 
 ```
 
@@ -242,16 +95,13 @@ get_binom_ci <- function(called_num, total_num, type_name, caller_name){
     return()
 }
 
-analyse_caller <- function(input_caller_id){
-  caller_name <- callers %>%
-    filter(id == input_caller_id) %>%
-    pull(name)
 
+analyse_caller <- function(caller_name){
   caller_false_negatives <- false_negatives %>%
-    filter(caller_id == input_caller_id)
+    filter(name_caller == caller_name)
   
   caller_true_positives <- true_positives %>%
-    filter(caller_id == input_caller_id)
+    filter(name_caller == caller_name)
   
   # statuses
   true_pos <- nrow(caller_true_positives)
@@ -272,41 +122,98 @@ analyse_caller <- function(input_caller_id){
   return(total_stats)
 }
 
-caller_stats <- map_dfr(callers$id, analyse_caller)
+
+caller_stats <- map_dfr(callers, analyse_caller) %>%
+  mutate(type = str_replace(type, "nlr", "Negative Likelihood Ratio")) %>%
+  mutate(type = str_replace(type, "plr", "Positive  Likelihood Ratio")) %>%
+  mutate(type = str_to_title(type))
 
 caller_stats %>%
-  filter(type %in% c("accuracy", "sensitivity", "specificity")) %>%
+  filter(type %in% c("Accuracy", "Sensitivity", "Specificity")) %>%
+  ggplot(aes(x=caller, colour=caller)) +
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high)) +
+  geom_point(aes(y=estimate)) +
+  facet_wrap(~type) +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ggsci::scale_colour_jco() +
+  labs(x = "CNV Caller",
+       y = "Value") +
+  guides(colour=FALSE) + 
+  ggsave(here::here("../../output/plots_tables/", glue("{params$capture}_all_caller_metrics.pdf")), height = 5) +
+  ggsave(here::here("../../output/plots_tables/", glue("{params$capture}_all_caller_metrics.png")), height = 5)
+
+caller_stats %>%
+  filter(!type %in% c("Accuracy", "Sensitivity", "Specificity")) %>%
+  # filter(!caller %in% c("copywriter", "xhmm")) %>%
   ggplot(aes(x=caller, colour=caller)) +
   geom_errorbar(aes(ymin=conf.low, ymax=conf.high)) +
   geom_point(aes(y=estimate)) +
   facet_wrap(~type, scales = "free_y") +
+  labs(x = "CNV Caller",
+       y = "Value") +
+  guides(colour=FALSE) + 
   theme_bw() + 
   theme(axis.text.x = element_text(angle=45, hjust=1)) +
-  ggsci::scale_colour_nejm() 
-
-caller_stats %>%
-  filter(!type %in% c("accuracy", "sensitivity", "specificity")) %>%
-  filter(!caller %in% c("copywriter", "xhmm")) %>%
-  ggplot(aes(x=caller, colour=caller)) +
-  geom_errorbar(aes(ymin=conf.low, ymax=conf.high)) +
-  geom_point(aes(y=estimate)) +
-  facet_wrap(~type, scales = "free_y") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle=45, hjust=1)) +
-  ggsci::scale_colour_nejm() 
+  ggsci::scale_colour_jco()  +
+  ggsave(here::here("../../output/plots_tables/", glue("{params$capture}_caller_likelihood_ratios.pdf")), height = 4, width = 4) +
+  ggsave(here::here("../../output/plots_tables/", glue("{params$capture}_caller_likelihood_ratios.png")), height = 4, width = 4)
 
 
 caller_stats %>%
   select(caller:total) %>%
-  filter(type %in% c("sensitivity", "specificity", "accuracy")) %>%
+  filter(type %in% c("Sensitivity", "Specificity", "Accuracy")) %>%
   knitr::kable() %>%
   print()
   
 caller_stats %>%
   select(caller:conf.high) %>%
-  filter(type %in% c("plr", "nlr")) %>%
+  filter(!type %in% c("Sensitivity", "Specificity", "Accuracy")) %>%
   knitr::kable() %>%
   print()
+
+
+# decon vs exome depth
+false_negatives %>%
+  rbind(true_positives) %>%
+  filter(name_caller %in% c("decon", "exome-depth")) %>%
+  full_join(positives, by = c("sample_id" = "id", "result_type"), suffix = c("_unknown", "")) %>%
+  group_by(sample_id) %>%
+  filter(n() < 2,
+         result_type == "positive") %>%
+  mutate(uncalled = is.na(caller_id)) %>%
+  arrange(uncalled, sample_id) %>%
+  ungroup() %>% 
+  rename(sample_name = name,
+         caller = name_caller,
+         gene = name_gene) %>%
+  arrange(capture, uncalled, gene, sample_name) %>%
+  select(gene, sample_name, caller, capture) %>% 
+  write_csv(here::here(glue("../../output/plots_tables/{params$capture}_exon_exome.csv")), na = "Not Detected")
+
+# top4 missed
+false_negatives %>%
+  rbind(true_positives) %>%
+  filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
+  full_join(positives, by = c("sample_id" = "id", "result_type"), suffix = c("_unknown", "")) %>%
+  group_by(sample_id) %>%
+  filter(n() < 4,
+         result_type == "positive") %>%
+  mutate(uncalled = is.na(caller_id)) %>%
+  ungroup() %>% 
+  rename(sample_name = name,
+         caller = name_caller,
+         gene = name_gene) %>%
+  group_by(sample_name, capture) %>%
+  summarize(gene = min(gene),
+            chrom = min(chrom),
+            start = min(start),
+            end = min(end),
+            caller = toString(caller),
+            uncalled = min(uncalled)) %>%
+  arrange(capture, uncalled, gene, sample_name) %>%
+  select(gene, sample_name, caller, capture) %>% 
+  write_csv(here::here(glue("../../output/plots_tables/{params$capture}_total_missing.csv")), na = "Not Detected")
 
 
 ```
@@ -337,20 +244,20 @@ copywriter_data <- false_negatives %>%
   full_join(positives, by = c("sample_id" = "id", "result_type")) %>%
   full_join(negatives, by = c("sample_id" = "id", "result_type")) %>%
   mutate(roc_outcome = if_else(result_type == "normal", 0, 1),
-         seg_mean = if_else(is.na(seg_mean), 0, seg_mean))
+         seg_mean = if_else(is.na(seg_mean), 0, seg_mean)) 
 
 ggplot(copywriter_data, aes(d = roc_outcome, m = seg_mean)) +
   geom_abline(slope=1, intercept=0, colour="grey") +
-  geom_roc(linealpha = 0.3, colour = "#005aac", cutoffs.at = c(0:10 * 0.1, 2)) +
+geom_roc(linealpha = 0.3, colour = "#005aac", cutoffs.at = c(0:10 * 0.1, 2)) +
   theme_bw() +
   ylab("Sensitivity") +
   xlab("1 - Specificity")
-save.image(here("output", params$capture, "copywriter_threshold.RData"))
+save.image(here("../../output", params$capture, "copywriter_threshold.RData"))
 
 ```
 
 ```{r save_data}
 
-save.image(here("output", params$capture, "caller_analysis.RData"))
+save.image(here("../../output", glue("{params$capture}caller_analysis.RData")))
 ```
 
