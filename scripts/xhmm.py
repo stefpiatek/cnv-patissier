@@ -11,6 +11,7 @@ Defaults used from XHMM documentation https://atgu.mgh.harvard.edu/xhmm/tutorial
 """
 
 import subprocess
+import time
 import os
 
 from . import utils, base_classes
@@ -61,6 +62,8 @@ class XHMM(base_classes.BaseCNVTool):
             docker_image="halllab/bcftools:v1.9",
             stdout=subprocess.PIPE,
         )
+        # avoid Error response from daemon: containerd: container did not start before the specified timeout.
+        time.sleep(5)
 
         vcf_data = str(sample_vcf.stdout, "utf-8").split("\n")
         cnvs = self.parse_vcf(vcf_data, sample_id)

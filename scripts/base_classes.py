@@ -7,8 +7,10 @@ import datetime
 import glob
 import json
 import os
+import pathlib
 import subprocess
 import sys
+import time
 
 from sqlalchemy import sql
 import toml
@@ -313,6 +315,8 @@ class BaseCNVTool:
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
             for line in sample_sheet:
                 bam_header = self.get_bam_header(line["sample_id"])
+                #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
+                time.sleep(5) 
                 sample_defaults = {"name": line["sample_id"], "path": line["sample_path"], "gene_id": gene_instance.id}
                 sample_data = {"bam_header": bam_header, "result_type": line["result_type"]}
 
