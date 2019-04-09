@@ -29,6 +29,7 @@ library(glue)
 library(ggsci)
 
 capture_is_icr <- params$capture == "ICR"
+capture_is_multi <- params$capture == "multi"
 ```
 
 ## Parse database to get summary of all output
@@ -215,7 +216,6 @@ false_negatives %>%
   select(gene, sample_name, caller, capture) %>% 
   write_csv(here::here(glue("../../output/plots_tables/{params$capture}_total_missing.csv")), na = "Not Detected")
 
-
 ```
 
 Determine threshold for copywriter if ICR data is being used:
@@ -255,6 +255,28 @@ geom_roc(linealpha = 0.3, colour = "#005aac", cutoffs.at = c(0:10 * 0.1, 2)) +
 save.image(here("../../output", params$capture, "copywriter_threshold.RData"))
 
 ```
+
+
+```{r samples_per_gene, eval=capture_is_multi}
+
+
+# genes per capture
+positives %>%
+  rbind(negatives) %>%
+  ggplot(aes(x = name_gene, fill=capture)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~result_type) +
+  labs(x = "Gene",
+       y = "Number of samples",
+       fill = "Capture") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ggsci::scale_fill_jco() +
+  ggsave(here::here("../../output/plots_tables/", "samples_per_gene.pdf"), height = 4, width = 7) +
+  ggsave(here::here("../../output/plots_tables/", "samples_per_gene.png"), height = 4, width = 7)
+
+```
+
 
 ```{r save_data}
 
