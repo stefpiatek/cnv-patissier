@@ -32,7 +32,7 @@ At least Python3.6 and Docker (at least engine 1.10) are required for this proje
     # Update apt
     sudo apt-get update
     # install python3.6
-    sudo apt-get install python3.6 
+    sudo apt-get install python3.6 python3.6-venv 
     ```
 
 2. Example Docker installation for [Ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu/) with x86_64 architecture. CentOS, Debian and Fedora, along with other achitectures also available from the link.
@@ -146,7 +146,7 @@ At least Python3.6 and Docker (at least engine 1.10) are required for this proje
     - The name column should be the gene name. If in doubt, please look at the example data in input for ICR_example. 
 
 
-3. For each gene in the capture where you have known CNV-status using a gold-standard, create a tab-delimited sample sheet. e.g. `cnv-patissier/input/ICR_example/sample-sheets/BRCA1.txt` and `cnv-patissier/input/ICR_example/sample-sheets/BRCA2.txt`
+3. For each gene in the capture where you have known CNV-status using a gold-standard, create a tab-delimited sample sheet. e.g. [cnv-patissier/input/ICR_example/sample-sheets/BRCA1.txt](input/ICR_example/sample-sheets/BRCA1.txt) and [cnv-patissier/input/ICR_example/sample-sheets/BRCA2.txt](input/ICR_example/sample-sheets/BRCA2.txt)
 
     - Make sure to create a tab delimited file
     - The name of the file should match the name column of the bed file from step 2

@@ -10,7 +10,6 @@ library(ggsci)
 library(lubridate)
 library(stringr)
 
-capture <- "ICR_n2"
 
 get_times <- function(capture){
   con <- dbConnect(SQLite(), dbname= here::here("../../output", glue("{capture}.sqlite")))

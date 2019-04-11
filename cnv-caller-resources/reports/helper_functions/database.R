@@ -41,7 +41,7 @@ get_true_positives <- function(db_file){
     filter(!(capture == "MiniPanel" & name_gene == "BRCA1" & cnv_id == 37)) %>%
     filter(!(capture == "MiniPanel" & name_gene == "BRCA2" & cnv_id == 115)) %>%
     select(-id) %>%
-    group_by(caller_id, sample_id) %>%
+    group_by(caller_id, sample_id, name_gene) %>%
     slice(which.min(id_called_cnv)) %>%
     ungroup() %>%
     left_join(callers, by = c("caller_id" = "id"), suffix = c("", "_caller"))
@@ -86,7 +86,7 @@ get_false_negatives <- function(db_file){
     filter(!(capture == "MiniPanel" & name_gene == "BRCA1" & cnv_id == 37)) %>%
     filter(!(capture == "MiniPanel" & name_gene == "BRCA2" & cnv_id == 115)) %>%
     select(-id) %>%
-    group_by(caller_id, sample_id) %>%
+    group_by(caller_id, sample_id, name_gene) %>%
     slice(which.min(id_called_cnv)) %>%
     ungroup() %>%
     left_join(callers, by = c("caller_id" = "id"), suffix = c("", "_caller")) 

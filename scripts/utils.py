@@ -1,5 +1,6 @@
 import csv
 import os
+import pathlib
 
 
 def get_cnv_patissier_dir():
@@ -8,6 +9,19 @@ def get_cnv_patissier_dir():
 
 
 class SampleUtils:
+    @classmethod
+    def check_files(cls, paths):
+        """Returns common root path for a list of paths"""
+        files = [pathlib.Path(path) for path in paths]
+        for file in files:
+            if "-" in file.name:
+                raise Exception(
+                    f"File {file} has a '-' in which is not allowed, please rename (or make a temporary copy of) "
+                    "this file and the bam index, then update sample sheet field"
+                )
+            if not file.exists():
+                raise Exception(f"File {file} does not exist")
+
     @classmethod
     def get_bam_to_id(cls, sample_sheet):
         normal_id, normal_path = cls.select_samples(sample_sheet, normal_panel=True)

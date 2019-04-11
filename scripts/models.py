@@ -41,12 +41,11 @@ class CNV(Base):
 class File(Base):
     __tablename__ = "files"
     id = Column(Integer, primary_key=True)
-    caller_id = Column(Integer, ForeignKey("callers.id", ondelete="CASCADE"), nullable=False)
-    gene_id = Column(Integer, ForeignKey("genes.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(Integer, ForeignKey("runs.id", ondelete="CASCADE"), nullable=False)
     relative_path = Column(String)
     md5sum = Column(Text)
 
-    __table_args__ = (UniqueConstraint(gene_id, relative_path),)
+    __table_args__ = (UniqueConstraint(run_id, relative_path),)
 
     def __repr__(self):
         return f"{self.relative_path}"

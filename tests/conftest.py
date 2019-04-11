@@ -152,17 +152,15 @@ def populate_db(db):
     run_1 = {
         "caller_id": 1,
         "gene_id": 1,
-        "start_time": datetime.datetime(2019, 1, 1, 11, 34, 59),
-        "end_time": datetime.datetime(2019, 1, 1, 13, 4, 1),
+        "duration": datetime.datetime(2019, 1, 1, 11, 34, 59) - datetime.datetime(2019, 1, 1, 13, 4, 1),
     }
     Queries.update_or_create(models.Run, session, defaults={"id": 1}, **run_1)
     run_2 = {
         "caller_id": 1,
         "gene_id": 2,
-        "start_time": datetime.datetime(2019, 1, 1, 14, 34, 59),
-        "end_time": datetime.datetime(2019, 1, 1, 16, 4, 1),
+        "duration": datetime.datetime(2019, 1, 1, 14, 34, 59) - datetime.datetime(2019, 1, 1, 16, 4, 1),
     }
-    Queries.update_or_create(models.Run, session, defaults={"id": 1}, **run_1)
+    Queries.update_or_create(models.Run, session, defaults={"id": 2}, **run_2)
 
     # known_cnvs
     Queries.update_or_create(models.KnownCNV, session, defaults={"id": 1}, cnv_id=1, sample_id=1)

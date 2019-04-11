@@ -27,10 +27,10 @@ if __name__ == "__main__":
     assert genes, "No genes found in path!"
 
     for gene in genes:
-        cnv_caller = cnv_kit.CNVKit(capture_name, gene, start_time)
-        cnv_caller.main()
+        # cnv_caller = cnv_kit.CNVKit(capture_name, gene, start_time)
+        # cnv_caller.main()
         cnv_caller = codex2.CODEX2(capture_name, gene, start_time)
-        cnv_caller.main()
+        cnv_caller.main()        
         cnv_caller = copywriter.Copywriter(capture_name, gene, start_time)
         cnv_caller.main()
         cnv_caller = decon.DECoN(capture_name, gene, start_time)
@@ -46,7 +46,9 @@ if __name__ == "__main__":
         cnv_caller = gatk.GATKCase(capture_name, gene, start_time)
         cnv_caller.main()
         cnv_caller = savvy_cnv.SavvyCNV(capture_name, gene, start_time)
-        cnv_caller.main()        
+        cnv_caller.main()
         cnv_caller = xhmm.XHMM(capture_name, gene, start_time)
         cnv_caller.main()
+
+
 print("Congrats, you're all done")
