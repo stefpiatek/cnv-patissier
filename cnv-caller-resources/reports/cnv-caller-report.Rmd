@@ -2,9 +2,7 @@
 title: "CNV caller report"
 author: "Stef Piatek"
 date: "`r format(Sys.time(), '%Y-%m-%d')`"
-output: 
-  html_document:
-     keep_md: TRUE
+output: html_document
 params:
   capture: "multi"
   
@@ -98,10 +96,10 @@ get_binom_ci <- function(called_num, total_num, type_name, caller_name){
 
 analyse_caller <- function(caller_name){
   caller_false_negatives <- false_negatives %>%
-    filter(name_caller == caller_name)
+    filter(name_caller == caller_name) 
   
   caller_true_positives <- true_positives %>%
-    filter(name_caller == caller_name)
+    filter(name_caller == caller_name) 
   
   # statuses
   true_pos <- nrow(caller_true_positives)
@@ -195,26 +193,43 @@ false_negatives %>%
 false_negatives %>%
   rbind(true_positives) %>%
   filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
-  full_join(positives, by = c("sample_id" = "id", "result_type"), suffix = c("_unknown", "")) %>%
-  group_by(sample_id) %>%
-  filter(n() < 4,
-         result_type == "positive") %>%
+  full_join(positives, by = c("sample_id" = "id", "name_gene", "capture", "name", "result_type"), 
+            suffix = c("_unknown", "")) %>%
   mutate(uncalled = is.na(caller_id)) %>%
-  ungroup() %>% 
+  group_by(sample_id, capture, name_gene) %>%
+  filter(result_type == "positive") %>%
+  filter(n() < 4) %>%
   rename(sample_name = name,
          caller = name_caller,
          gene = name_gene) %>%
-  group_by(sample_name, capture) %>%
-  summarize(gene = min(gene),
-            chrom = min(chrom),
-            start = min(start),
-            end = min(end),
-            caller = toString(caller),
-            uncalled = min(uncalled)) %>%
-  arrange(capture, uncalled, gene, sample_name) %>%
+  summarize(caller = toString(caller),
+            uncalled = min(uncalled),
+            sample_name = min(sample_name)) %>%
+  arrange(capture, gene, uncalled, sample_name) %>%
   select(gene, sample_name, caller, capture) %>% 
   write_csv(here::here(glue("../../output/plots_tables/{params$capture}_total_missing.csv")), na = "Not Detected")
 
+## venn diagram
+library(VennDiagram)
+
+top4 <- true_positives %>%
+  filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
+  mutate(name_gene = paste0(name, name_gene)) # honestly didn't expect two CNVs in different genes but there we go
+
+venn.diagram(x = list(
+    "DECoN" = top4 %>% filter(name_caller == "decon") %>% pull(name_gene),
+    "GATK" = top4 %>% filter(name_caller == "gatk") %>% pull(name_gene),
+    "SavvyCNV" = top4 %>% filter(name_caller == "savvycnv") %>% pull(name_gene),
+    "Exome Depth" = top4 %>% filter(name_caller == "exome-depth") %>% pull(name_gene)
+    ),
+    fill = ggsci::pal_jco()(4), 
+    filename = here::here("../../output/plots_tables/", "top4_callers.png"),
+    resolution = 600,
+    imagetype = "png",
+    height = 4,
+    width = 4,
+    units = "in"
+)
 
 ```
 
