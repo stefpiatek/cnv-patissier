@@ -214,18 +214,37 @@ false_positives %>%
 ## venn diagram
 library(VennDiagram)
 
-top4 <- true_positives %>%
+top4_pos <- true_positives %>%
   filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
   mutate(name_gene = paste0(name, name_gene)) # honestly didn't expect two CNVs in different genes but there we go
 
 venn.diagram(x = list(
-    "DECoN" = top4 %>% filter(name_caller == "decon") %>% pull(name_gene),
-    "GATK" = top4 %>% filter(name_caller == "gatk") %>% pull(name_gene),
-    "SavvyCNV" = top4 %>% filter(name_caller == "savvycnv") %>% pull(name_gene),
-    "Exome Depth" = top4 %>% filter(name_caller == "exome-depth") %>% pull(name_gene)
+    "DECoN" = top4_pos %>% filter(name_caller == "decon") %>% pull(name_gene),
+    "GATK" = top4_pos %>% filter(name_caller == "gatk") %>% pull(name_gene),
+    "SavvyCNV" = top4_pos %>% filter(name_caller == "savvycnv") %>% pull(name_gene),
+    "Exome Depth" = top4_pos %>% filter(name_caller == "exome-depth") %>% pull(name_gene)
     ),
     fill = ggsci::pal_jco()(4), 
-    filename = here::here("../../output/plots_tables/", "top4_callers.png"),
+    filename = here::here("../../output/plots_tables/", "top4_callers_true_pos.png"),
+    resolution = 600,
+    imagetype = "png",
+    height = 4,
+    width = 4,
+    units = "in"
+)
+
+top4_neg <- false_positives %>%
+  filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
+  mutate(name_gene = paste0(name, name_gene)) # honestly didn't expect two CNVs in different genes but there we go
+
+venn.diagram(x = list(
+    "DECoN" = top4_neg %>% filter(name_caller == "decon") %>% pull(name_gene),
+    "GATK" = top4_neg %>% filter(name_caller == "gatk") %>% pull(name_gene),
+    "SavvyCNV" = top4_neg %>% filter(name_caller == "savvycnv") %>% pull(name_gene),
+    "Exome Depth" = top4_neg %>% filter(name_caller == "exome-depth") %>% pull(name_gene)
+    ),
+    fill = ggsci::pal_jco()(4), 
+    filename = here::here("../../output/plots_tables/", "top4_callers_false_pos.png"),
     resolution = 600,
     imagetype = "png",
     height = 4,
