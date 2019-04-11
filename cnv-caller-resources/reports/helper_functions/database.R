@@ -67,7 +67,7 @@ get_positives <- function(db_file){
   return(positives)
 }
 
-get_false_negatives <- function(db_file){
+get_false_positives <- function(db_file){
   con <- dbConnect(SQLite(), dbname= db_file)
   
   callers <- get_callers(con) 
@@ -79,7 +79,7 @@ get_false_negatives <- function(db_file){
     left_join(tbl(con, "samples"), by = c("id" = "gene_id"), suffix = c("_gene", "")) %>%
     filter(result_type == "normal") 
   
-  false_negatives <- negatives %>%
+  false_positives <- negatives %>%
     left_join(tbl(con, "called_cnvs"), by=c("id" = "sample_id"),  suffix = c("", "_called_cnv")) %>%
     collect() %>%
     mutate(sample_id = id) %>%
@@ -94,7 +94,7 @@ get_false_negatives <- function(db_file){
   dbDisconnect(con)
   
 
-  return(false_negatives)
+  return(false_positives)
 }
 
 get_negatives <- function(db_file){
