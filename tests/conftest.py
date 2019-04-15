@@ -21,7 +21,7 @@ def cleanup_after_xhmm():
     subprocess.run(["rm", f"{vcf_path}.gz.tbi"], check=True)
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.yield_fixture(scope="class")
 def db():
     """Session-wide test database."""
 
@@ -110,7 +110,7 @@ def populate_db(db):
             "@SQ\tSN:chr22\tLN:51304566",
             "@SQ\tSN:chrX\tLN:155270560",
             "@SQ\tSN:chrY\tLN:59373566",
-            "@RG\tID:18\tCN:GOSH\tDS:2018-12-25\tDT:2019-01-01\tLB:L001\tPG:PipelineV1\tPL:NB503215\tSM:12S13548",
+            "@RG\tID:18\tCN:GOSH\tDS:2018-12-25\tDT:2019-01-01\tLB:L001\tPG:PipelineV1\tPL:NB503215\tSM:10S21354",
             "@PG\tID:18\tPN:bwa\tCL:bwa\tmem\t-M\t-t\t25\t-R\t@RG\tVN:0.7.15-r1140",
             "@PG\tID:SAMBLASTER\tCL:samblaster\t-i\tstdin\t-o\tstdout\tVN:0.1.24\r\n",
         ]
@@ -118,13 +118,13 @@ def populate_db(db):
     sample_1 = {
         "bam_header": bam_header,
         "gene_id": 1,
-        "name": "12S13548",
-        "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/12S13548_sorted.bam",
+        "name": "10S21354",
+        "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/10S21354_sorted.bam",
         "result_type": "positive",
     }
     Queries.update_or_create(models.Sample, session, defaults={"id": 1}, **sample_1)
     sample_2 = {
-        "bam_header": bam_header.replace("12S13548", "92S13548"),
+        "bam_header": bam_header.replace("10S21354", "92S13548"),
         "gene_id": 1,
         "name": "92S13548",
         "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/92S13548_sorted.bam",
@@ -132,7 +132,7 @@ def populate_db(db):
     }
     Queries.update_or_create(models.Sample, session, defaults={"id": 2}, **sample_2)
     sample_3 = {
-        "bam_header": bam_header.replace("12S13548", "02S13548"),
+        "bam_header": bam_header.replace("10S21354", "02S13548"),
         "gene_id": 1,
         "name": "02S13548",
         "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/02S13548_sorted.bam",
@@ -140,7 +140,7 @@ def populate_db(db):
     }
     Queries.update_or_create(models.Sample, session, defaults={"id": 3}, **sample_3)
     sample_4 = {
-        "bam_header": bam_header.replace("12S13548", "2S13548"),
+        "bam_header": bam_header.replace("10S21354", "2S13548"),
         "gene_id": 2,
         "name": "2S13548",
         "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/2S13548_sorted.bam",
@@ -174,17 +174,11 @@ def populate_db(db):
 
     # files
     file_1 = {
-        "caller_id": 1,
-        "gene_id": 1,
-        "relative_path": "scripts/base_classes.py",
+        "run_id": 1,
+        "relative_path": "cnv-pat/scripts/base_classes.py",
         "md5sum": "cef8890c1c8051d0c87919cf5e30fb54",
     }
     Queries.update_or_create(models.File, session, defaults={"id": 1}, **file_1)
-    file_2 = {
-        "caller_id": 1,
-        "gene_id": 1,
-        "relative_path": "scripts/__init__.py",
-        "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
-    }
+    file_2 = {"run_id": 1, "relative_path": "cnv-pat/scripts/__init__.py", "md5sum": "d41d8cd98f00b204e9800998ecf8427e"}
     Queries.update_or_create(models.File, session, defaults={"id": 2}, **file_2)
     session.commit()

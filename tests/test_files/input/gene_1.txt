@@ -1,3 +1,3 @@
 sample_id	sample_path	result_type	target_gene	capture_name	chromosome	start	end	cnv_call
 12S13548	/mnt/data/181225_NB503215_run/analysis/Alignments/12S13548_sorted.bam	positive	gene_1	ICR	chr17	1200	1500	DUP
-10S21354	/mnt/data/181225_NB503215_run/analysis/Alignments/10S21354_sorted.bam	normal-panel	gene_1	ICR	chr17	NA	NA	NA
+12S13548	/mnt/data/181225_NB503215_run/analysis/Alignments/12S13548_sorted.bam	normal-panel	gene_1	ICR	chr17	NA	NA	NA

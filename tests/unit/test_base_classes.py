@@ -83,15 +83,22 @@ class TestGetBAMHeader:
     def setup(self):
         self.caller = BaseCNVTool("capture", "gene", "time")
         self.caller.run_type = "example_type"
-        self.caller.sample_to_bam = {"sample_1": "/mnt/test_files/input/bam_header.bam"}
+        self.caller.sample_to_bam = {
+            "12S13548": "/mnt/test_files/input/bam_header.bam",
+            "sample_mismatch": "/mnt/test_files/input/bam_header.bam",
+        }
         self.caller.bam_mount = "/mnt/data/"
 
     def test_basic(self):
         with open("tests/test_files/input/bam_header.sam") as handle:
             header_list = handle.readlines()
         expected_header = "".join(header_list).replace("\n", "\r\n")
-        output_header = self.caller.get_bam_header("sample_1")
-        assert expected_header == output_header  
+        output_header = self.caller.get_bam_header("12S13548")
+        assert expected_header == output_header
+
+    def test_sample_mismatch(self):
+        with pytest.raises(AssertionError):
+            self.caller.get_bam_header("sample_mismatch")
 
 
 @pytest.mark.usefixtures("db", "db_session")
@@ -209,21 +216,15 @@ class TestUploadSamples:
         ]
 
     def test_basic(self):
-        """Existing instance should stay the same, 10S shouldn't exist, then be uploaded
+        """Existing instance should stay the same, 12S13548 shouldn't exist, then be uploaded
         Data returned should be a list of dictionaries for upload of known cnv information from sample sheet"""
 
-        existing_1 = self.caller.session.query(models.Sample).filter_by(name="12S13548").first()
-        existing_data_1 = instance_data(existing_1)
-        no_instance = self.caller.session.query(models.Sample).filter_by(name="10S21354").first()
+        no_instance = self.caller.session.query(models.Sample).filter_by(name="12S13548").first()
 
         output_table = self.caller.upload_samples(self.sample_sheet)
         uploaded_1 = self.caller.session.query(models.Sample).filter_by(name="12S13548").first()
-        uploaded_2 = self.caller.session.query(models.Sample).filter_by(name="10S21354").first()
-        assert existing_data_1 == instance_data(uploaded_1)
-        assert no_instance is None
-        assert uploaded_2.name == "10S21354"
-        assert uploaded_2.bam_header == existing_data_1["bam_header"]
-        assert uploaded_2.result_type == "normal-panel"
+        assert not no_instance
+        assert uploaded_1.name == "12S13548"
         assert output_table == self.expected_output
 
 
@@ -236,9 +237,9 @@ class TestUploadPositiveCNVs:
             {
                 "cnv": {"alt": "DUP", "genome_build": "hg19", "chrom": "chr17", "start": "1200", "end": "1500"},
                 "sample_defaults": {
-                    "name": "12S13548",
+                    "name": "10S21354",
                     "gene_id": 1,
-                    "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/12S13548_sorted.bam",
+                    "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/10S21354_sorted.bam",
                 },
             }
         ]
@@ -280,7 +281,7 @@ class TestUploadCalledCNV:
             "start": "10",
             "end": "120",
             "chrom": "chr1",
-            "sample_id": "12S13548",
+            "sample_id": "10S21354",
             "alt": "DEL",
             "json_data": {"extra_field1": "extra_data1", "extra_field2": "extra_data2"},
         }

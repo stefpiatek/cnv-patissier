@@ -11,9 +11,10 @@ def get_cnv_patissier_dir():
 class SampleUtils:
     @classmethod
     def check_files(cls, paths):
-        """Returns common root path for a list of paths"""
+        """Makes sure all files exist and don't have invalid characters in their name"""
         files = [pathlib.Path(path) for path in paths]
         for file in files:
+            # CODEX2 automatically replaces '-' with '.'
             if "-" in file.name:
                 raise Exception(
                     f"File {file} has a '-' in which is not allowed, please rename (or make a temporary copy of) "
