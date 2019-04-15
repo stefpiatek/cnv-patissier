@@ -156,7 +156,7 @@ class BaseCNVTool:
     def get_md5sum(self, file_path):
         md5sum_proc = subprocess.run(["md5sum", file_path], check=True, stdout=subprocess.PIPE)
         md5sum, path = str(md5sum_proc.stdout, "utf-8").split()
-        return md5sum, path
+        return md5sum, path.replace(cnv_pat_dir, "cnv-pat")
 
     def get_normal_panel_time(self):
         normal_path = (
@@ -300,12 +300,15 @@ class BaseCNVTool:
         known_cnv_table = self.upload_samples(self.sample_sheet)
         self.upload_positive_cnvs(known_cnv_table)
 
-    def upload_all_md5sums(self):
+    def upload_all_md5sums(self, run_id):
         for folder in self.script_dirs:
             folder_path = pathlib.Path(folder)
-            for file in folder_path.glob("*.[pR]*"):
+            files = [python for python in folder_path.glob("**/*.py")] + [R for R in folder_path.glob("**/*.R")]
+            for file in files:
                 md5sum, file_path = self.get_md5sum(file)
-                print(md5sum, file_path)
+                Queries.update_or_create(
+                    models.File, self.session, defaults={"run_id": run_id, "relative_path": file_path}, md5sum=md5sum
+                )
 
     def upload_cnv_caller(self):
         Queries.get_or_create(models.Caller, self.session, defaults=dict(name=self.run_type))
@@ -340,7 +343,7 @@ class BaseCNVTool:
             for line in sample_sheet:
                 bam_header = self.get_bam_header(line["sample_id"])
                 #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
-                time.sleep(5) 
+                time.sleep(5)
                 sample_defaults = {"name": line["sample_id"], "path": line["sample_path"], "gene_id": gene_instance.id}
                 sample_data = {"bam_header": bam_header, "result_type": line["result_type"]}
 
@@ -400,7 +403,8 @@ class BaseCNVTool:
 
         run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
         upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
-        Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
+        run_instance = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
+        self.upload_all_md5sums(run_instance.id)
         self.session.commit()
 
     @logger.catch(reraise=True)

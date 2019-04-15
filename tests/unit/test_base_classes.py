@@ -1,3 +1,4 @@
+import pathlib
 import subprocess
 
 import pytest
@@ -100,13 +101,14 @@ class TestGetMd5sum:
         self.caller.run_type = "example_type"
 
     def test_simple(self):
-        expected = ("d41d8cd98f00b204e9800998ecf8427e", "input/.gitkeep")
-        output = self.caller.get_md5sum("input/.gitkeep")
+        expected = ("d41d8cd98f00b204e9800998ecf8427e", "cnv-pat/input/.gitkeep")
+        output = self.caller.get_md5sum(pathlib.Path("input/.gitkeep").resolve())
         assert expected == output
 
     def test_missing_file(self):
         with pytest.raises(subprocess.CalledProcessError):
             output = self.caller.get_md5sum("does_not_exist.txt")
+
 
 @pytest.mark.dev
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
@@ -116,9 +118,10 @@ class TestUploadAllMd5sums:
         self.caller.run_type = "example_type"
 
     def test_working(self):
-        self.caller.upload_all_md5sums()
-        assert False
-
+        before_upload = self.caller.session.query(models.File).all()
+        self.caller.upload_all_md5sums(1)
+        after_upload = self.caller.session.query(models.File).all()
+        assert len(before_upload) < len(after_upload)
 
 
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
