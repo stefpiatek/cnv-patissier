@@ -117,7 +117,6 @@ class TestGetMd5sum:
             output = self.caller.get_md5sum("does_not_exist.txt")
 
 
-@pytest.mark.dev
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadAllMd5sums:
     def setup(self):

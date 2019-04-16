@@ -13,6 +13,8 @@ tests/coverage_html/
 ! tests/coverage_html/.gitkeep
 *.gz
 *.html
+tests/test_files/input/checks/sample*.txt
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

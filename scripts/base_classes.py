@@ -229,17 +229,32 @@ class BaseCNVTool:
         """
         Returns dictionary of sample_id: bam header
         Checks: 
+          - filenames have no invalid characters (check_files)
+          - file paths exist (check_files)
+          - file paths are unique (check_files)
+          - sample_ids are unique (check_unique)
           - SN tag in bam header (from get_bam_header)
           - sample id matches the sample ID given (from get_bam_header)
+
         """
         bam_headers = {}
+        sample_paths = []
+        sample_ids = []
         with open(sample_sheet_path, "r") as handle:
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
             for line in sample_sheet:
-                bam_header = self.get_bam_header(line["sample_id"])
-                bam_headers[line["sample_id"]] = bam_header
-                #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
-                time.sleep(5)
+                sample_paths.append(line["sample_path"])
+                sample_ids.append(line["sample_id"])
+
+        utils.SampleUtils.check_files(sample_paths)
+        utils.SampleUtils.check_unique(sample_ids, "sample_id")
+
+        for sample_id, sample_path in zip(sample_ids, sample_paths):
+            bam_header = self.get_bam_header(sample_id)
+            bam_headers[sample_id] = bam_header
+            #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
+            time.sleep(5)
+
         return bam_headers
 
     def process_caller_output(self, sample_path, sample_id=None):
@@ -419,7 +434,7 @@ class BaseCNVTool:
         run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
         upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
         run_instance, created = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
-        #self.upload_all_md5sums(run_instance.id)
+        # self.upload_all_md5sums(run_instance.id)
         self.session.commit()
 
     @logger.catch(reraise=True)
