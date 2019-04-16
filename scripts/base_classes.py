@@ -41,6 +41,7 @@ class BaseCNVTool:
         self.capture = capture
         self.extra_db_fields = []
         self.gene = gene
+        self.script_dirs = [f"{cnv_pat_dir}/{folder}" for folder in ["scripts", "cnv-caller-resources"]]
 
         if "PYTEST_CURRENT_TEST" in os.environ.keys():
             self.settings = {"chromosome_prefix": "chr"}
@@ -139,7 +140,23 @@ class BaseCNVTool:
             ["samtools", "view", "-H", docker_bam], docker_image="stefpiatek/samtools:1.9", stdout=subprocess.PIPE
         )
         header = str(samtools.stdout, "utf-8")
+
+        for line in header.split("\n"):
+            for field_value in line.split():
+                if field_value.startswith("SM:"):
+                    sample_name = field_value.strip("SM:")
+        if not sample_name:
+            raise Exception(f"No SM tag found in file {docker_bam}")
+        assert (
+            sample_name == sample_id
+        ), f"sample-sheet sample_id '{sample_id}' for '{docker_bam}' does not match bam SM: '{sample_name}'"
+
         return header
+
+    def get_md5sum(self, file_path):
+        md5sum_proc = subprocess.run(["md5sum", file_path], check=True, stdout=subprocess.PIPE)
+        md5sum, path = str(md5sum_proc.stdout, "utf-8").split()
+        return md5sum, path
 
     def get_normal_panel_time(self):
         normal_path = (
@@ -282,6 +299,13 @@ class BaseCNVTool:
         self.upload_gene()
         known_cnv_table = self.upload_samples(self.sample_sheet)
         self.upload_positive_cnvs(known_cnv_table)
+
+    def upload_all_md5sums(self):
+        for folder in self.script_dirs:
+            folder_path = pathlib.Path(folder)
+            for file in folder_path.glob("*.[pR]*"):
+                md5sum, file_path = self.get_md5sum(file)
+                print(md5sum, file_path)
 
     def upload_cnv_caller(self):
         Queries.get_or_create(models.Caller, self.session, defaults=dict(name=self.run_type))

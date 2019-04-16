@@ -1,3 +1,5 @@
+import subprocess
+
 import pytest
 
 from scripts.base_classes import BaseCNVTool
@@ -88,7 +90,35 @@ class TestGetBAMHeader:
             header_list = handle.readlines()
         expected_header = "".join(header_list).replace("\n", "\r\n")
         output_header = self.caller.get_bam_header("sample_1")
-        assert expected_header == output_header
+        assert expected_header == output_header  
+
+
+@pytest.mark.usefixtures("db", "db_session")
+class TestGetMd5sum:
+    def setup(self):
+        self.caller = BaseCNVTool("capture", "gene", "time")
+        self.caller.run_type = "example_type"
+
+    def test_simple(self):
+        expected = ("d41d8cd98f00b204e9800998ecf8427e", "input/.gitkeep")
+        output = self.caller.get_md5sum("input/.gitkeep")
+        assert expected == output
+
+    def test_missing_file(self):
+        with pytest.raises(subprocess.CalledProcessError):
+            output = self.caller.get_md5sum("does_not_exist.txt")
+
+@pytest.mark.dev
+@pytest.mark.usefixtures("db", "db_session", "populate_db")
+class TestUploadAllMd5sums:
+    def setup(self):
+        self.caller = BaseCNVTool("capture", "gene", "time")
+        self.caller.run_type = "example_type"
+
+    def test_working(self):
+        self.caller.upload_all_md5sums()
+        assert False
+
 
 
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
