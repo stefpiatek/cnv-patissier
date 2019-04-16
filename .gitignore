@@ -13,7 +13,7 @@ tests/coverage_html/
 ! tests/coverage_html/.gitkeep
 *.gz
 *.html
-tests/test_files/input/checks/sample*.txt
+tests/test_files/input/checks/sample*
 
 
 # Byte-compiled / optimized / DLL files

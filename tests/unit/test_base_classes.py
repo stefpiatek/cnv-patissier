@@ -4,7 +4,9 @@ import subprocess
 import pytest
 
 from scripts.base_classes import BaseCNVTool
-from scripts import models
+from scripts import models, utils
+
+cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 def instance_data(instance):
@@ -118,6 +120,30 @@ class TestGetMd5sum:
 
 
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
+class TestPreRunSteps:
+    def setup(self):
+        self.test_file_prefix = f"{cnv_pat_dir}/tests/test_files/input/checks"
+
+        with open(f"{self.test_file_prefix}/sample_sheet_working.txt", "w") as handle:
+            handle.write("sample_id\tsample_path\n")
+            handle.write(f"12S13548\t{cnv_pat_dir}/tests/test_files/input/bam_header.bam\n")
+
+        self.caller = BaseCNVTool("ICR", "gene_1", "time")
+        self.caller.bam_mount = "/mnt/data/"
+        self.caller.run_type = "example_type"
+        self.caller.sample_to_bam = {"12S13548": "/mnt/test_files/input/bam_header.bam"}
+        self.header_file = "tests/test_files/input/bam_header.sam"
+        with open("tests/test_files/input/bam_header.sam") as handle:
+            header_list = handle.readlines()
+
+        self.expected_header = {"12S13548": "".join(header_list).replace("\n", "\r\n")}
+
+    def test_header(self):
+        header = self.caller.prerun_steps(f"{self.test_file_prefix}/sample_sheet_working.txt")
+        assert header == self.expected_header
+
+
+@pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadAllMd5sums:
     def setup(self):
         self.caller = BaseCNVTool("capture", "gene", "time")
@@ -198,10 +224,7 @@ class TestUploadSamples:
         }
         self.caller.bam_mount = "/mnt/data/"
         self.caller.settings = {"genome_build_name": "hg19"}
-        self.header_file = "tests/test_files/input/bam_header.sam"
-        with open("tests/test_files/input/bam_header.sam") as handle:
-            header_list = handle.readlines()
-        self.expected_header = "".join(header_list).replace("\n", "\r\n")
+        self.caller.bam_headers = {"12S13548": "header1", "10S21354": "header2"}
         self.sample_sheet = "tests/test_files/input/gene_1.txt"
         self.expected_output = [
             {
