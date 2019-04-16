@@ -225,6 +225,23 @@ class BaseCNVTool:
                 cnvs.append(cnv)
         return cnvs
 
+    def prerun_steps(self, sample_sheet_path):
+        """
+        Returns dictionary of sample_id: bam header
+        Checks: 
+          - SN tag in bam header (from get_bam_header)
+          - sample id matches the sample ID given (from get_bam_header)
+        """
+        bam_headers = {}
+        with open(sample_sheet_path, "r") as handle:
+            sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
+            for line in sample_sheet:
+                bam_header = self.get_bam_header(line["sample_id"])
+                bam_headers[line["sample_id"]] = bam_header
+                #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
+                time.sleep(5)
+        return bam_headers
+
     def process_caller_output(self, sample_path, sample_id=None):
         try:
             cnvs = self.parse_output_file(sample_path, sample_id)
@@ -341,9 +358,7 @@ class BaseCNVTool:
 
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
             for line in sample_sheet:
-                bam_header = self.get_bam_header(line["sample_id"])
-                #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
-                time.sleep(5)
+                bam_header = self.bam_headers[line["sample_id"]]
                 sample_defaults = {"name": line["sample_id"], "path": line["sample_path"], "gene_id": gene_instance.id}
                 sample_data = {"bam_header": bam_header, "result_type": line["result_type"]}
 
@@ -403,8 +418,8 @@ class BaseCNVTool:
 
         run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
         upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
-        run_instance = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
-        self.upload_all_md5sums(run_instance.id)
+        run_instance, created = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
+        #self.upload_all_md5sums(run_instance.id)
         self.session.commit()
 
     @logger.catch(reraise=True)
@@ -414,17 +429,18 @@ class BaseCNVTool:
         )
         if self.run_required(previous_run_settings_path):
             if self.run_type.endswith("cohort"):
+                self.bam_headers = self.prerun_steps(self.sample_sheet)
                 self.settings["start_datetime"] = datetime.datetime.now()
                 self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()
             else:
+                self.bam_headers = self.prerun_steps(self.sample_sheet)
                 self.settings["start_datetime"] = datetime.datetime.now()
                 output_paths, sample_ids = self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()
                 self.upload_all_known_data()
                 self.upload_all_called_cnvs(output_paths, sample_ids)
                 self.upload_run_data(sample_ids)
-                # self.upload_file_data()
             self.write_settings_toml()
 
     def write_settings_toml(self):
