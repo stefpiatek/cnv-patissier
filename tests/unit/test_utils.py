@@ -45,7 +45,34 @@ class TestCheckUnique:
         sample_1 = [f"sample_{number}" for number in range(50)]
         sample_2 = [f"sample_{number}" for number in range(10, 12)]
         with pytest.raises(Exception):
-            utils.SampleUtils.check_files([*sample_1, *sample_2], "samples")
+            utils.SampleUtils.check_unique([*sample_1, *sample_2], "samples")
+
+
+class TestGetBAMtoID:
+    def setup(self):
+        self.test_file = f"{cnv_pat_dir}/tests/test_files/input/checks/sample_sheet_bam_to_id.txt"
+        expected_ids = {}
+        with open(self.test_file, "w") as handle:
+            handle.write("sample_id\tsample_path\tresult_type\n")
+
+            for number in range(35):
+                if number < 30:
+                    result = "normal-panel"
+                elif number % 2:
+                    result = "positive"
+                else:
+                    result = "normal"
+                sample = f"sample{number}"
+                path = f"input/sample{number}.bam"
+                handle.write(f"{sample}\t{path}\t{result}\n")
+
+                expected_ids[path] = sample
+
+        self.expected_ids = expected_ids
+
+    def test_working(self):
+        bam_to_id = utils.SampleUtils.get_bam_to_id(self.test_file)
+        assert bam_to_id == self.expected_ids
 
 
 class TestSampleUtilsSelectSamples:
