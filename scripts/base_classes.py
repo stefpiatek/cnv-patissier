@@ -225,7 +225,7 @@ class BaseCNVTool:
                 cnvs.append(cnv)
         return cnvs
 
-    def prerun_steps(self, sample_sheet_path):
+    def prerun_steps(self, sample_sheet_path, ref_genome_path):
         """
         Returns dictionary of sample_id: bam header
         Checks: 
@@ -233,6 +233,7 @@ class BaseCNVTool:
           - file paths exist (check_files)
           - file paths are unique (check_files)
           - sample_ids are unique (check_unique)
+          - reference genome files exist
           - SN tag in bam header (from get_bam_header)
           - sample id matches the sample ID given (from get_bam_header)
 
@@ -248,6 +249,11 @@ class BaseCNVTool:
 
         utils.SampleUtils.check_files(sample_paths)
         utils.SampleUtils.check_unique(sample_ids, "sample_id")
+        for extension in ["", ".fai", ".dict"]:
+            ref_genome = pathlib.Path(ref_genome_path + extension)
+            assert (
+                ref_genome.exists()
+            ), f"{ref_genome} does not exist\nPlease edit your settings file or create the file"
 
         for sample_id, sample_path in zip(sample_ids, sample_paths):
             bam_header = self.get_bam_header(sample_id)
@@ -444,12 +450,12 @@ class BaseCNVTool:
         )
         if self.run_required(previous_run_settings_path):
             if self.run_type.endswith("cohort"):
-                self.bam_headers = self.prerun_steps(self.sample_sheet)
+                self.bam_headers = self.prerun_steps(self.sample_sheet, cnv_pat_settings["genome_fasta_path"])
                 self.settings["start_datetime"] = datetime.datetime.now()
                 self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()
             else:
-                self.bam_headers = self.prerun_steps(self.sample_sheet)
+                self.bam_headers = self.prerun_steps(self.sample_sheet, cnv_pat_settings["genome_fasta_path"])
                 self.settings["start_datetime"] = datetime.datetime.now()
                 output_paths, sample_ids = self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()

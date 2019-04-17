@@ -139,8 +139,16 @@ class TestPreRunSteps:
         self.expected_header = {"12S13548": "".join(header_list).replace("\n", "\r\n")}
 
     def test_header(self):
-        header = self.caller.prerun_steps(f"{self.test_file_prefix}/sample_sheet_working.txt")
+        header = self.caller.prerun_steps(
+            f"{self.test_file_prefix}/sample_sheet_working.txt", "tests/test_files/reference/genome.fa"
+        )
         assert header == self.expected_header
+
+    @pytest.mark.parametrize("genome", ["no_genome.fa", "genome_no_fai.fa", "genome_no_dict.fa"])
+    def test_missing_reference(self, genome):
+        with pytest.raises(AssertionError):
+            genome_path = f"tests/test_files/reference/{genome}"
+            self.caller.prerun_steps(f"{self.test_file_prefix}/sample_sheet_working.txt", genome_path)
 
 
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
