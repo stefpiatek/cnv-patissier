@@ -97,8 +97,9 @@ class BaseCNVTool:
                 if not any([line.startswith(chrom) for chrom in chromosomes]):
                     raise Exception(
                         "BED file contains line which has an invalid chromosome:\n"
-                        f"Line number: {line_number}\nLine: '{line}'\n"
-                        "Expected format: '{}'\n".format(chromosomes[0].replace("\t", "\\t"))
+                        f"Line number: {line_number}\n"
+                        "Line: '{}'\n".format(line.replace("\t", "<tab>").rstrip()) + 
+                        "Expected format: '{}'\n".format(chromosomes[0].replace("\t", "<tab>start<tab>end<tab>gene"))
                         + "Please update 'chromosome_prefix' in local settings file, or alter the BED file."
                     )
 
