@@ -88,6 +88,20 @@ class BaseCNVTool:
 
         return (output_base, docker_output_base)
 
+    def check_chrom_prefix(self, bed_file):
+        """Raises exception if chromosome prefix doesn't match chromsome in bed file"""
+        chromosome_names = [x for x in range(1, 23)] + ["X", "Y", "M", "mt"]
+        chromosomes = [f"{self.settings['chromosome_prefix']}{chromsome}\t" for chromsome in chromosome_names]
+        with open(bed_file, "r") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not any([line.startswith(chrom) for chrom in chromosomes]):
+                    raise Exception(
+                        "BED file contains line which has an invalid chromosome:\n"
+                        f"Line number: {line_number}\nLine: '{line}'\n"
+                        "Expected format: '{}'\n".format(chromosomes[0].replace("\t", "\\t"))
+                        + "Please update 'chromosome_prefix' in local settings file, or alter the BED file."
+                    )
+
     def delete_unused_runs(self):
         logger.info(f"Removing any old or unsuccessful runs for {self.capture}, {self.run_type}, {self.gene}")
         subprocess.run(

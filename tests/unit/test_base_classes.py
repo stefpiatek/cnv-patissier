@@ -14,6 +14,38 @@ def instance_data(instance):
 
 
 @pytest.mark.usefixtures("db", "db_session")
+class TestCheckChromPrefix:
+    def setup(self):
+        self.caller = BaseCNVTool("capture", "gene", "time")
+        self.caller.settings = {"chromosome_prefix": "chr"}
+
+    def test_chr_prefix_working(self):
+        self.caller.check_chrom_prefix("tests/test_files/input/bed/chr-prefix.bed")
+
+    def test_chr_prefix_mismatch(self):
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/no-prefix.bed")
+
+    def test_blank_lines(self):
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/chr-prefix_blank.bed")
+
+    def test_no_prefix_working(self):
+        self.caller.settings = {"chromosome_prefix": ""}
+        self.caller.check_chrom_prefix("tests/test_files/input/bed/no-prefix.bed")
+
+    def test_no_prefix_mismatch(self):
+        self.caller.settings = {"chromosome_prefix": ""}
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/chr-prefix.bed")
+
+    def test_header(self):
+        self.caller.settings = {"chromosome_prefix": ""}
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/no-prefix_header.bed")
+
+
+@pytest.mark.usefixtures("db", "db_session")
 class TestFilterCNVs:
     def setup(self):
         self.caller = BaseCNVTool("capture", "gene", "time")
