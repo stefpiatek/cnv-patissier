@@ -456,7 +456,7 @@ class BaseCNVTool:
         run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
         upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
         run_instance, created = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
-        self.session.commit()       
+        self.session.commit()
         self.upload_all_md5sums(run_instance.id)
         self.session.commit()
 
