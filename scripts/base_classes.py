@@ -265,6 +265,8 @@ class BaseCNVTool:
         utils.SampleUtils.check_files(sample_paths)
         utils.SampleUtils.check_unique(sample_ids, "sample_id")
         for extension in ["", ".fai", ".dict"]:
+            if extension == ".dict":
+                ref_genome_path = ref_genome_path.rstrip(".fasta").rstrip(".fa")
             ref_genome = pathlib.Path(ref_genome_path + extension)
             assert (
                 ref_genome.exists()
