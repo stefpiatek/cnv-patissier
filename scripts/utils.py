@@ -11,9 +11,17 @@ def get_cnv_patissier_dir():
 class SampleUtils:
     @classmethod
     def check_files(cls, paths):
-        """Returns common root path for a list of paths"""
-        files = [pathlib.Path(path) for path in paths]
+        """ Takes in a list of paths and raises Exception if:
+         - File doesn't exist
+         - Has invalid character in filename
+         - Paths are not unique
+
+        """
+        cls.check_unique(paths, "sample_path")
+
+        files = [pathlib.Path(path).resolve() for path in paths]
         for file in files:
+            # CODEX2 automatically replaces '-' with '.'
             if "-" in file.name:
                 raise Exception(
                     f"File {file} has a '-' in which is not allowed, please rename (or make a temporary copy of) "
@@ -23,7 +31,16 @@ class SampleUtils:
                 raise Exception(f"File {file} does not exist")
 
     @classmethod
+    def check_unique(cls, items, data_type):
+        """If items are not unique, returns exception with duplicate items listed """
+        non_unique = set(item for item in items if items.count(item) > 1)
+        if non_unique:
+            non_unique_out = "\n ".join(non_unique)
+            raise Exception(f"The the following {data_type}(s) are not unique:\n {non_unique_out}")
+
+    @classmethod
     def get_bam_to_id(cls, sample_sheet):
+        """Returns dictionary of bam paths to sample ids from the sample sheet """
         normal_id, normal_path = cls.select_samples(sample_sheet, normal_panel=True)
         unknown_id, unknown_path = cls.select_samples(sample_sheet, normal_panel=False)
         paths = normal_path + unknown_path
@@ -47,8 +64,8 @@ class SampleUtils:
                         if sample["result_type"] == cnv_status:
                             output_ids.append(sample["sample_id"].strip())
                             output_paths.append(sample["sample_path"].strip())
-        assert len(set(output_ids)) == len(output_ids), "sample sheet sample_ids must be unique"
-        assert len(set(output_paths)) == len(output_paths), "sample sheet sample_paths must be unique"
+        if normal_panel:
+            assert len(output_ids) >= 30, "There must be 30 normal-panel samples in the sample sheet"
         return output_ids, output_paths
 
     @classmethod

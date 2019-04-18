@@ -1,13 +1,48 @@
+import pathlib
 import subprocess
 
 import pytest
 
 from scripts.base_classes import BaseCNVTool
-from scripts import models
+from scripts import models, utils
+
+cnv_pat_dir = utils.get_cnv_patissier_dir()
 
 
 def instance_data(instance):
     return {k: v for k, v in instance.__dict__.items() if k != "_sa_instance_state"}
+
+
+@pytest.mark.usefixtures("db", "db_session")
+class TestCheckChromPrefix:
+    def setup(self):
+        self.caller = BaseCNVTool("capture", "gene", "time")
+        self.caller.settings = {"chromosome_prefix": "chr"}
+
+    def test_chr_prefix_working(self):
+        self.caller.check_chrom_prefix("tests/test_files/input/bed/chr-prefix.bed")
+
+    def test_chr_prefix_mismatch(self):
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/no-prefix.bed")
+
+    def test_blank_lines(self):
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/chr-prefix_blank.bed")
+
+    def test_no_prefix_working(self):
+        self.caller.settings = {"chromosome_prefix": ""}
+        self.caller.check_chrom_prefix("tests/test_files/input/bed/no-prefix.bed")
+
+    def test_no_prefix_mismatch(self):
+        self.caller.settings = {"chromosome_prefix": ""}
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/chr-prefix.bed")
+
+    def test_header(self):
+        self.caller.settings = {"chromosome_prefix": ""}
+        with pytest.raises(Exception):
+            self.caller.check_chrom_prefix("tests/test_files/input/bed/no-prefix_header.bed")
 
 
 @pytest.mark.usefixtures("db", "db_session")
@@ -82,15 +117,22 @@ class TestGetBAMHeader:
     def setup(self):
         self.caller = BaseCNVTool("capture", "gene", "time")
         self.caller.run_type = "example_type"
-        self.caller.sample_to_bam = {"sample_1": "/mnt/test_files/input/bam_header.bam"}
+        self.caller.sample_to_bam = {
+            "12S13548": "/mnt/test_files/input/bam_header.bam",
+            "sample_mismatch": "/mnt/test_files/input/bam_header.bam",
+        }
         self.caller.bam_mount = "/mnt/data/"
 
     def test_basic(self):
         with open("tests/test_files/input/bam_header.sam") as handle:
             header_list = handle.readlines()
         expected_header = "".join(header_list).replace("\n", "\r\n")
-        output_header = self.caller.get_bam_header("sample_1")
-        assert expected_header == output_header  
+        output_header = self.caller.get_bam_header("12S13548")
+        assert expected_header == output_header
+
+    def test_sample_mismatch(self):
+        with pytest.raises(AssertionError):
+            self.caller.get_bam_header("sample_mismatch")
 
 
 @pytest.mark.usefixtures("db", "db_session")
@@ -100,15 +142,47 @@ class TestGetMd5sum:
         self.caller.run_type = "example_type"
 
     def test_simple(self):
-        expected = ("d41d8cd98f00b204e9800998ecf8427e", "input/.gitkeep")
-        output = self.caller.get_md5sum("input/.gitkeep")
+        expected = ("d41d8cd98f00b204e9800998ecf8427e", "cnv-pat/input/.gitkeep")
+        output = self.caller.get_md5sum(pathlib.Path("input/.gitkeep").resolve())
         assert expected == output
 
     def test_missing_file(self):
         with pytest.raises(subprocess.CalledProcessError):
             output = self.caller.get_md5sum("does_not_exist.txt")
 
-@pytest.mark.dev
+
+@pytest.mark.usefixtures("db", "db_session", "populate_db")
+class TestPreRunSteps:
+    def setup(self):
+        self.test_file_prefix = f"{cnv_pat_dir}/tests/test_files/input/checks"
+
+        with open(f"{self.test_file_prefix}/sample_sheet_working.txt", "w") as handle:
+            handle.write("sample_id\tsample_path\n")
+            handle.write(f"12S13548\t{cnv_pat_dir}/tests/test_files/input/bam_header.bam\n")
+
+        self.caller = BaseCNVTool("ICR", "gene_1", "time")
+        self.caller.bam_mount = "/mnt/data/"
+        self.caller.run_type = "example_type"
+        self.caller.sample_to_bam = {"12S13548": "/mnt/test_files/input/bam_header.bam"}
+        self.header_file = "tests/test_files/input/bam_header.sam"
+        with open("tests/test_files/input/bam_header.sam") as handle:
+            header_list = handle.readlines()
+
+        self.expected_header = {"12S13548": "".join(header_list).replace("\n", "\r\n")}
+
+    def test_header(self):
+        header = self.caller.prerun_steps(
+            f"{self.test_file_prefix}/sample_sheet_working.txt", "tests/test_files/reference/genome.fa"
+        )
+        assert header == self.expected_header
+
+    @pytest.mark.parametrize("genome", ["no_genome.fa", "genome_no_fai.fa", "genome_no_dict.fa"])
+    def test_missing_reference(self, genome):
+        with pytest.raises(AssertionError):
+            genome_path = f"tests/test_files/reference/{genome}"
+            self.caller.prerun_steps(f"{self.test_file_prefix}/sample_sheet_working.txt", genome_path)
+
+
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
 class TestUploadAllMd5sums:
     def setup(self):
@@ -116,9 +190,10 @@ class TestUploadAllMd5sums:
         self.caller.run_type = "example_type"
 
     def test_working(self):
-        self.caller.upload_all_md5sums()
-        assert False
-
+        before_upload = self.caller.session.query(models.File).all()
+        self.caller.upload_all_md5sums(1)
+        after_upload = self.caller.session.query(models.File).all()
+        assert len(before_upload) < len(after_upload)
 
 
 @pytest.mark.usefixtures("db", "db_session", "populate_db")
@@ -189,10 +264,7 @@ class TestUploadSamples:
         }
         self.caller.bam_mount = "/mnt/data/"
         self.caller.settings = {"genome_build_name": "hg19"}
-        self.header_file = "tests/test_files/input/bam_header.sam"
-        with open("tests/test_files/input/bam_header.sam") as handle:
-            header_list = handle.readlines()
-        self.expected_header = "".join(header_list).replace("\n", "\r\n")
+        self.caller.bam_headers = {"12S13548": "header1", "10S21354": "header2"}
         self.sample_sheet = "tests/test_files/input/gene_1.txt"
         self.expected_output = [
             {
@@ -206,21 +278,15 @@ class TestUploadSamples:
         ]
 
     def test_basic(self):
-        """Existing instance should stay the same, 10S shouldn't exist, then be uploaded
+        """Existing instance should stay the same, 12S13548 shouldn't exist, then be uploaded
         Data returned should be a list of dictionaries for upload of known cnv information from sample sheet"""
 
-        existing_1 = self.caller.session.query(models.Sample).filter_by(name="12S13548").first()
-        existing_data_1 = instance_data(existing_1)
-        no_instance = self.caller.session.query(models.Sample).filter_by(name="10S21354").first()
+        no_instance = self.caller.session.query(models.Sample).filter_by(name="12S13548").first()
 
         output_table = self.caller.upload_samples(self.sample_sheet)
         uploaded_1 = self.caller.session.query(models.Sample).filter_by(name="12S13548").first()
-        uploaded_2 = self.caller.session.query(models.Sample).filter_by(name="10S21354").first()
-        assert existing_data_1 == instance_data(uploaded_1)
-        assert no_instance is None
-        assert uploaded_2.name == "10S21354"
-        assert uploaded_2.bam_header == existing_data_1["bam_header"]
-        assert uploaded_2.result_type == "normal-panel"
+        assert not no_instance
+        assert uploaded_1.name == "12S13548"
         assert output_table == self.expected_output
 
 
@@ -233,9 +299,9 @@ class TestUploadPositiveCNVs:
             {
                 "cnv": {"alt": "DUP", "genome_build": "hg19", "chrom": "chr17", "start": "1200", "end": "1500"},
                 "sample_defaults": {
-                    "name": "12S13548",
+                    "name": "10S21354",
                     "gene_id": 1,
-                    "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/12S13548_sorted.bam",
+                    "path": "/mnt/data/181225_NB503215_run/analysis/Alignments/10S21354_sorted.bam",
                 },
             }
         ]
@@ -277,7 +343,7 @@ class TestUploadCalledCNV:
             "start": "10",
             "end": "120",
             "chrom": "chr1",
-            "sample_id": "12S13548",
+            "sample_id": "10S21354",
             "alt": "DEL",
             "json_data": {"extra_field1": "extra_data1", "extra_field2": "extra_data2"},
         }

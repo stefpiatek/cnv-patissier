@@ -153,7 +153,7 @@ At least Python3.6 and Docker (at least engine 1.10) are required for this proje
     - Only create a sample sheet where you have at least 30 samples which are known not to have CNV, and have samples with known CNVs. You do not need to have a sample sheet for every gene in your capture. 
     - The column names are: 
         - sample_id: unique name for the sample
-        - sample_path: full path to the bam file
+        - sample_path: full path to the bam file, no '-' allowed in the filename (but in path is fine)
         - result_type :  samples that are known to have no CNVs can be either `normal-panel` or `normal`. Samples which have a CNV are `positive`
             - There should be at least 30 `normal-panel` samples, as many `positive` samples and a similar number of `normal` samples
         - Data for positive CNV samples:
@@ -187,3 +187,28 @@ To run the tests
 # in the root directory of cnv-patissier, with your environment activated 
 python -m pytest tests/
 ```
+
+## FAQ and common issues
+
+### What will you change
+
+- The bam files and the reference genome are mounted as read only
+- Only the `output` and `test` directory is mounted as writeable 
+
+
+### What is collected in the final SQLite database for sharing?
+
+- Each CNV call, with all metadata from each caller
+- The BAM header for each file used, the docker mount path of the BAM file, result type and the sample name
+- Information about the run duration and gene of interest
+
+
+### What can the user change
+
+- Ideally nothing, the files in the `scripts`  and `cnv-caller-resources` directory should never be altered
+
+
+### BAM index 
+
+- Please make sure the BAM is indexed, and that this is newer than the BAM file (touch if necessary)
+- Some tools will require this and fail because it doesn't exist

@@ -75,8 +75,7 @@ class BaseCNVTool:
                 "capture": capture,
                 "gene": gene,
                 "start_time": start_time,
-                # To add in after sure all genes run correctly
-                # "sample_sheet_md5sum": self.get_md5sum(self.sample_sheet),
+                "sample_sheet_md5sum": self.get_md5sum(self.sample_sheet)[0],
                 "capture_path": f"/mnt/input/{capture}/bed/{capture}.bed",
                 "unknown_bams": unknown_docker_bams,
             }
@@ -87,6 +86,21 @@ class BaseCNVTool:
         docker_output_base = output_base.replace(cnv_pat_dir, "/mnt")
 
         return (output_base, docker_output_base)
+
+    def check_chrom_prefix(self, bed_file):
+        """Raises exception if chromosome prefix doesn't match chromsome in bed file"""
+        chromosome_names = [x for x in range(1, 23)] + ["X", "Y", "M", "mt"]
+        chromosomes = [f"{self.settings['chromosome_prefix']}{chromsome}\t" for chromsome in chromosome_names]
+        with open(bed_file, "r") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if not any([line.startswith(chrom) for chrom in chromosomes]):
+                    raise Exception(
+                        "BED file contains line which has an invalid chromosome:\n"
+                        f"Line number: {line_number}\n"
+                        "Line: '{}'\n".format(line.replace("\t", "<tab>").rstrip())
+                        + "Expected format: '{}'\n".format(chromosomes[0].replace("\t", "<tab>start<tab>end<tab>gene"))
+                        + "Please update 'chromosome_prefix' in local settings file, or alter the BED file."
+                    )
 
     def delete_unused_runs(self):
         logger.info(f"Removing any old or unsuccessful runs for {self.capture}, {self.run_type}, {self.gene}")
@@ -156,7 +170,7 @@ class BaseCNVTool:
     def get_md5sum(self, file_path):
         md5sum_proc = subprocess.run(["md5sum", file_path], check=True, stdout=subprocess.PIPE)
         md5sum, path = str(md5sum_proc.stdout, "utf-8").split()
-        return md5sum, path
+        return md5sum, path.replace(cnv_pat_dir, "cnv-pat")
 
     def get_normal_panel_time(self):
         normal_path = (
@@ -224,6 +238,46 @@ class BaseCNVTool:
                 cnv = {**row, "end": end, "sample_id": sample_id, "format_data": format_data, "info_data": info_data}
                 cnvs.append(cnv)
         return cnvs
+
+    def prerun_steps(self, sample_sheet_path, ref_genome_path):
+        """
+        Returns dictionary of sample_id: bam header
+        Checks: 
+          - filenames have no invalid characters (check_files)
+          - file paths exist (check_files)
+          - file paths are unique (check_files)
+          - sample_ids are unique (check_unique)
+          - reference genome files exist
+          - SN tag in bam header (from get_bam_header)
+          - sample id matches the sample ID given (from get_bam_header)
+
+        """
+        bam_headers = {}
+        sample_paths = []
+        sample_ids = []
+        with open(sample_sheet_path, "r") as handle:
+            sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
+            for line in sample_sheet:
+                sample_paths.append(line["sample_path"])
+                sample_ids.append(line["sample_id"])
+
+        utils.SampleUtils.check_files(sample_paths)
+        utils.SampleUtils.check_unique(sample_ids, "sample_id")
+        for extension in ["", ".fai", ".dict"]:
+            if extension == ".dict":
+                ref_genome_path = ref_genome_path.rstrip(".fasta").rstrip(".fa")
+            ref_genome = pathlib.Path(ref_genome_path + extension)
+            assert (
+                ref_genome.exists()
+            ), f"{ref_genome} does not exist\nPlease edit your settings file or create the file"
+
+        for sample_id, sample_path in zip(sample_ids, sample_paths):
+            bam_header = self.get_bam_header(sample_id)
+            bam_headers[sample_id] = bam_header
+            #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
+            time.sleep(5)
+
+        return bam_headers
 
     def process_caller_output(self, sample_path, sample_id=None):
         try:
@@ -300,12 +354,15 @@ class BaseCNVTool:
         known_cnv_table = self.upload_samples(self.sample_sheet)
         self.upload_positive_cnvs(known_cnv_table)
 
-    def upload_all_md5sums(self):
+    def upload_all_md5sums(self, run_id):
         for folder in self.script_dirs:
             folder_path = pathlib.Path(folder)
-            for file in folder_path.glob("*.[pR]*"):
+            files = [python for python in folder_path.glob("**/*.py")] + [R for R in folder_path.glob("**/*.R")]
+            for file in files:
                 md5sum, file_path = self.get_md5sum(file)
-                print(md5sum, file_path)
+                Queries.update_or_create(
+                    models.File, self.session, defaults={"run_id": run_id, "relative_path": file_path}, md5sum=md5sum
+                )
 
     def upload_cnv_caller(self):
         Queries.get_or_create(models.Caller, self.session, defaults=dict(name=self.run_type))
@@ -338,9 +395,7 @@ class BaseCNVTool:
 
             sample_sheet = csv.DictReader(handle, dialect="excel", delimiter="\t")
             for line in sample_sheet:
-                bam_header = self.get_bam_header(line["sample_id"])
-                #  to avoid `docker: Error response from daemon: container did not start before the specified timeout.`
-                time.sleep(5) 
+                bam_header = self.bam_headers[line["sample_id"]]
                 sample_defaults = {"name": line["sample_id"], "path": line["sample_path"], "gene_id": gene_instance.id}
                 sample_data = {"bam_header": bam_header, "result_type": line["result_type"]}
 
@@ -400,7 +455,9 @@ class BaseCNVTool:
 
         run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
         upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
-        Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
+        run_instance, created = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
+        self.session.commit()       
+        self.upload_all_md5sums(run_instance.id)
         self.session.commit()
 
     @logger.catch(reraise=True)
@@ -410,17 +467,18 @@ class BaseCNVTool:
         )
         if self.run_required(previous_run_settings_path):
             if self.run_type.endswith("cohort"):
+                self.bam_headers = self.prerun_steps(self.sample_sheet, cnv_pat_settings["genome_fasta_path"])
                 self.settings["start_datetime"] = datetime.datetime.now()
                 self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()
             else:
+                self.bam_headers = self.prerun_steps(self.sample_sheet, cnv_pat_settings["genome_fasta_path"])
                 self.settings["start_datetime"] = datetime.datetime.now()
                 output_paths, sample_ids = self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()
                 self.upload_all_known_data()
                 self.upload_all_called_cnvs(output_paths, sample_ids)
                 self.upload_run_data(sample_ids)
-                # self.upload_file_data()
             self.write_settings_toml()
 
     def write_settings_toml(self):
