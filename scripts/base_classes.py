@@ -75,8 +75,7 @@ class BaseCNVTool:
                 "capture": capture,
                 "gene": gene,
                 "start_time": start_time,
-                # To add in after sure all genes run correctly
-                # "sample_sheet_md5sum": self.get_md5sum(self.sample_sheet),
+                "sample_sheet_md5sum": self.get_md5sum(self.sample_sheet)[0],
                 "capture_path": f"/mnt/input/{capture}/bed/{capture}.bed",
                 "unknown_bams": unknown_docker_bams,
             }
@@ -98,8 +97,8 @@ class BaseCNVTool:
                     raise Exception(
                         "BED file contains line which has an invalid chromosome:\n"
                         f"Line number: {line_number}\n"
-                        "Line: '{}'\n".format(line.replace("\t", "<tab>").rstrip()) + 
-                        "Expected format: '{}'\n".format(chromosomes[0].replace("\t", "<tab>start<tab>end<tab>gene"))
+                        "Line: '{}'\n".format(line.replace("\t", "<tab>").rstrip())
+                        + "Expected format: '{}'\n".format(chromosomes[0].replace("\t", "<tab>start<tab>end<tab>gene"))
                         + "Please update 'chromosome_prefix' in local settings file, or alter the BED file."
                     )
 
@@ -457,7 +456,8 @@ class BaseCNVTool:
         run_defaults = {"gene_id": gene_instance.id, "caller_id": caller_instance.id}
         upload_data = {"samples": json.dumps(sample_ids), "duration": duration}
         run_instance, created = Queries.update_or_create(models.Run, self.session, defaults=run_defaults, **upload_data)
-        # self.upload_all_md5sums(run_instance.id)
+        self.session.commit()       
+        self.upload_all_md5sums(run_instance.id)
         self.session.commit()
 
     @logger.catch(reraise=True)
