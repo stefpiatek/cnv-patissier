@@ -6,6 +6,7 @@ RUN apt-get update \
 
 RUN R -e "install.packages(c('optparse', 'dplyr', 'tidyr', 'stringr', 'BiocManager'));"
 
-RUN R -e "BiocManager::install('CopywriteR', version = '3.8');" 
+RUN R -e "install.packages(c('purrr')); \
+    BiocManager::install('panelcn.mops', version = '3.8');" 
 
 CMD ["bash"]

@@ -1,0 +1,5 @@
+Sample	Chr	Gene	Exon	Start	End	RC	medRC	RC.norm	medRC.norm	lowQual	CN
+sample_1	2	test	test.NA.chr2.5700.5750	5700	5750	1430	2546	1537	2508		CN1
+sample_1	17	test	test.NA.chr17.100.4000	100	4000	1430	2546	1537	2508		CN1
+sample_2	2	test	test.NA.chr2.5700.5750	5700	5750	5430	2546	3537	2508		CN3
+sample_2	17	test	test.NA.chr17.100.4000	100	4000	5430	2546	3537	2508		CN3
