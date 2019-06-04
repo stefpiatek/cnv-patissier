@@ -1,0 +1,21 @@
+CNV Caller,Read depth normalisation or modelling,Panel of normals?,Calling,On-target or off-target reads
+CANOES,Negative binomial distribution model with GC content correction,Yes,Hidden Markov model and maximum likelihood Viterbi algorithm,On-target
+Canvas,"Weighted average, Outlier removal and GC content correction",Yes,Unbalanced Haar wavelet transform then deviation model,On-target
+CLAMMS,"Finite mixture model, GC content and low mappability",Yes,Hidden Markov model,On-target
+CNV-CH,GC content correction,No,Convex hull algorithm,On-target
+CNVkit,Rolling median depth with GC content & repetitive region normalisation,Yes,Segmentation and copy number determination,Both
+CNVPanelizer,Trimmed mean of M,No,Bootstrapped subsampling,On-target
+CODEX2,Latent factor model,Yes,Recursive Poisson-likelihood segmentation algorithm,On-target
+CoNIFER,Singular vector decomposition,Yes,z-score,On-target
+CONTRA,"Log ratio, GC content correction",Yes,Binning and linear interpolation,On-target
+CopywriteR,Loess-based correction for mappability and GC content,Matched normal,Circular binary segmentation,Off-target
+DECoN,"Binomial model, GC content correction",Closest correlation from all samples,Hidden Markov model and maximum likelihood Viterbi algorithm,On-target
+EXCAVATOR2,"Mean read count, median normalisation for GC content, mappability and region size",Yes,Shifting level model segmentation and Gaussian model,Both
+ExomeDepth,"Binomial model, GC content correction",Closest correlation,Hidden Markov model and maximum likelihood Viterbi algorithm,On-target
+FishingCNV,Singular vector decomposition,Yes,Circular binary segmentation,On-target
+GATK gCNV,"GC content correction, Bayesian read depth model",Yes,Hierarchical graphical model,On-target
+panelcn.MOPS,Upper quartile normalisation,Closest correlation,Mixture of Poissons,On-target
+SavvyCNV ,Singular vector decomposition,No,Hidden Markov model with crossover in integer copy number,Both
+VisCap,"Fraction of coverage, median-normalised",No,Log2 ratio thresholds and outlier in batch,On-target
+WISExome,Normalised to total counts over whole genome,Within-sample reference,z-score,On-target
+XHMM,"Singular vector decomposition, filter highly variable regions",No,z-score and merging,On-target

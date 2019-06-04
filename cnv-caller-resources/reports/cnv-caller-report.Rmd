@@ -29,6 +29,13 @@ library(ggsci)
 capture_is_icr <- params$capture == "ICR"
 capture_is_multi <- params$capture == "multi"
 
+capture_to_site <- function(input){
+  input %>%
+    mutate(capture = str_replace(capture, "(MiniPanel|Cancer_v1)", "GOSH")) %>%
+    mutate(capture = str_replace(capture, "(CTD|HeredCancer)", "SCH")) %>%
+    return()
+}
+  
 ```
 
 ## Parse database to get summary of all output
@@ -51,8 +58,7 @@ if (params$capture != "multi"){
   callers <- get_callers_list(database_path) %>%
     pull(name)
 } else {
-  captures <- here("../../output", paste0(c("ICR_n2", "MiniPanel", "Cancer_v1"), ".sqlite"))
-  # purr
+  captures <- here("../../output", paste0(c("ICR", "MiniPanel", "Cancer_v1", "CTD", "HeredCancer"), ".sqlite"))
   
   true_positives <- map_dfr(.x = captures, .f = get_true_positives) 
   positives <- map_dfr(.x = captures, .f = get_positives)
@@ -61,11 +67,14 @@ if (params$capture != "multi"){
   callers <- map_df(.x = captures, .f = get_callers_list) %>%
     pull(name) %>%
     as.factor() %>%
-    levels()
-
+    levels() 
 }
 
-
+# ICR data not completely known
+false_positives <- capture_to_site(false_positives) 
+positives <- capture_to_site(positives)
+true_positives <- capture_to_site(true_positives)
+negatives <- capture_to_site(negatives)
 
 
 ```
@@ -105,14 +114,14 @@ analyse_caller <- function(caller_name){
   
   # statuses
   true_pos <- nrow(caller_true_positives)
-  true_neg <- nrow(negatives) - nrow(caller_false_positives)
-  false_pos <- nrow(negatives) - true_neg
+  false_pos <- nrow(caller_false_positives)
+  true_neg <- nrow(negatives) - false_pos
   false_neg <- nrow(positives) - true_pos
 
   total_stats <- rbind(
-    get_binom_ci(true_pos, true_pos + false_neg, "sensitivity", caller_name),
-    get_binom_ci(true_neg, false_pos + true_neg, "specificity", caller_name),
-    get_binom_ci(true_pos + true_neg, true_pos + false_neg + false_pos + true_neg, "accuracy", caller_name),
+    get_binom_ci(true_pos, nrow(positives), "sensitivity", caller_name),
+    get_binom_ci(true_neg, nrow(negatives), "specificity", caller_name),
+    get_binom_ci(true_pos + true_neg, nrow(negatives) + nrow(positives), "accuracy", caller_name),
     ## Must fit with the actual diseas prevalence so not used
     # get_binom_ci(true_pos, true_pos + false_pos, "ppv", caller_name),
     # get_binom_ci(true_neg, false_neg + true_neg, "npv", caller_name),
@@ -160,6 +169,7 @@ caller_stats %>%
   ggsave(here::here("../../output/plots_tables/", glue("{params$capture}_caller_likelihood_ratios.png")), height = 4, width = 4)
 
 
+
 caller_stats %>%
   select(caller:total) %>%
   filter(type %in% c("Sensitivity", "Specificity", "Accuracy")) %>%
@@ -172,11 +182,33 @@ caller_stats %>%
   knitr::kable() %>%
   print()
 
+# write tables
+write_csv(caller_stats, here::here("../../output/plots_tables/poster_stats.csv"))
+
+
+caller_stats %>%
+  filter(type %in% c("Sensitivity", "Specificity", "Accuracy")) %>%
+  mutate(value_range = glue("{round(estimate, 2)} ({round(conf.low, 2)} - {round(conf.high, 2)})")) %>%
+  select(caller,type, value_range) %>%
+  spread(type, value_range) %>%
+  rename(Caller = caller) %>%
+  select(Caller, Sensitivity, Specificity, Accuracy) %>%
+  write_csv(here::here("../../output/plots_tables/", glue("{params$capture}_core_values.csv")))
+
+
+caller_stats %>%
+  filter(!type %in% c("Sensitivity", "Specificity", "Accuracy")) %>%
+  mutate(value_range = glue("{round(estimate, 2)} ({round(conf.low, 2)} - {round(conf.high, 2)})")) %>%
+  select(caller,type, value_range) %>%
+  spread(type, value_range) %>%
+  rename(Caller = caller) %>%
+  write_csv(here::here("../../output/plots_tables/", glue("{params$capture}_ratios.csv")))
+
 
 # decon vs exome depth
 false_positives %>%
   rbind(true_positives) %>%
-  filter(name_caller %in% c("decon", "exome-depth")) %>%
+  filter(name_caller %in% c("DECoN", "ExomeDepth")) %>%
   full_join(positives, by = c("sample_id" = "id", "result_type"), suffix = c("_unknown", "")) %>%
   group_by(sample_id) %>%
   filter(n() < 2,
@@ -191,22 +223,22 @@ false_positives %>%
   select(gene, sample_name, caller, capture) %>% 
   write_csv(here::here(glue("../../output/plots_tables/{params$capture}_exon_exome.csv")), na = "Not Detected")
 
-# top4 missed
+# top5 missed
 false_positives %>%
   rbind(true_positives) %>%
-  filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
+  filter(name_caller %in% c("DECoN", "ExomeDepth", "GATK gCNV", "SavvyCNV", "panelcn.MOPS")) %>%
   full_join(positives, by = c("sample_id" = "id", "name_gene", "capture", "name", "result_type"), 
             suffix = c("_unknown", "")) %>%
   mutate(uncalled = is.na(caller_id)) %>%
   group_by(sample_id, capture, name_gene) %>%
   filter(result_type == "positive") %>%
-  filter(n() < 4) %>%
+  filter(n() < 5) %>%
   rename(sample_name = name,
          caller = name_caller,
          gene = name_gene) %>%
+  group_by(sample_name, capture, gene) %>%
   summarize(caller = toString(caller),
-            uncalled = min(uncalled),
-            sample_name = min(sample_name)) %>%
+            uncalled = min(uncalled)) %>%
   arrange(capture, gene, uncalled, sample_name) %>%
   select(gene, sample_name, caller, capture) %>% 
   write_csv(here::here(glue("../../output/plots_tables/{params$capture}_total_missing.csv")), na = "Not Detected")
@@ -214,18 +246,17 @@ false_positives %>%
 ## venn diagram
 library(VennDiagram)
 
-top4_pos <- true_positives %>%
-  filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
+top_pos <- true_positives %>%
   mutate(name_gene = paste0(name, name_gene)) # honestly didn't expect two CNVs in different genes but there we go
 
 venn.diagram(x = list(
-    "DECoN" = top4_pos %>% filter(name_caller == "decon") %>% pull(name_gene),
-    "GATK" = top4_pos %>% filter(name_caller == "gatk") %>% pull(name_gene),
-    "SavvyCNV" = top4_pos %>% filter(name_caller == "savvycnv") %>% pull(name_gene),
-    "Exome Depth" = top4_pos %>% filter(name_caller == "exome-depth") %>% pull(name_gene)
+    "DECoN" = top_pos %>% filter(name_caller == "DECoN") %>% pull(name_gene),
+    "GATK" = top_pos %>% filter(name_caller == "GATK gCNV") %>% pull(name_gene),
+    "SavvyCNV" = top_pos %>% filter(name_caller == "SavvyCNV") %>% pull(name_gene),
+    "panelcn.MOPS" = top_pos %>% filter(name_caller == "panelcn.MOPS") %>% pull(name_gene)
     ),
     fill = ggsci::pal_jco()(4), 
-    filename = here::here("../../output/plots_tables/", "top4_callers_true_pos.png"),
+    filename = here::here("../../output/plots_tables/", "top_callers_true_pos.png"),
     resolution = 600,
     imagetype = "png",
     height = 4,
@@ -233,18 +264,18 @@ venn.diagram(x = list(
     units = "in"
 )
 
-top4_neg <- false_positives %>%
-  filter(name_caller %in% c("decon", "exome-depth", "gatk", "savvycnv")) %>%
+
+top_neg <- false_positives %>%
   mutate(name_gene = paste0(name, name_gene)) # honestly didn't expect two CNVs in different genes but there we go
 
 venn.diagram(x = list(
-    "DECoN" = top4_neg %>% filter(name_caller == "decon") %>% pull(name_gene),
-    "GATK" = top4_neg %>% filter(name_caller == "gatk") %>% pull(name_gene),
-    "SavvyCNV" = top4_neg %>% filter(name_caller == "savvycnv") %>% pull(name_gene),
-    "Exome Depth" = top4_neg %>% filter(name_caller == "exome-depth") %>% pull(name_gene)
+    "DECoN" = top_neg %>% filter(name_caller == "DECoN") %>% pull(name_gene),
+    "GATK" = top_neg %>% filter(name_caller == "GATK gCNV") %>% pull(name_gene),
+    "SavvyCNV" = top_neg %>% filter(name_caller == "SavvyCNV") %>% pull(name_gene),
+    "panelcn.MOPS" = top_neg %>% filter(name_caller == "panelcn.MOPS") %>% pull(name_gene)
     ),
     fill = ggsci::pal_jco()(4), 
-    filename = here::here("../../output/plots_tables/", "top4_callers_false_pos.png"),
+    filename = here::here("../../output/plots_tables/", "top_callers_false_pos.png"),
     resolution = 600,
     imagetype = "png",
     height = 4,
@@ -298,12 +329,14 @@ save.image(here("../../output", params$capture, "copywriter_threshold.RData"))
 # genes per capture
 positives %>%
   rbind(negatives) %>%
+  mutate(str_replace(result_type, "normal", "Negative")) %>%
+  mutate(str_replace(result_type, "positive", "Positive")) %>%
   ggplot(aes(x = name_gene, fill=capture)) +
   geom_bar(position = "stack") +
   facet_wrap(~result_type) +
   labs(x = "Gene",
        y = "Number of samples",
-       fill = "Capture") +
+       fill = "Dataset") +
   theme_bw() + 
   theme(axis.text.x = element_text(angle=45, hjust=1)) +
   ggsci::scale_fill_jco() +

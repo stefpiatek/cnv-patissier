@@ -1,0 +1,163 @@
+---
+# PLEASE SEE THE README for in depth description github.com/brentthorne/posterdown
+poster_height: "32in"
+poster_width: "46in"
+font_family: "Palatino"
+#ESSENTIALS
+title: A multi-site comparison of copy number variant callers for germline next generation sequencing using targeted capture
+author:
+  - name: Stef Piatek
+    affil: 1
+    main: true
+    twitter: stefanpiatek 
+    email: stefan.piatek@nhs.net
+  - name: Elizabeth Sollars
+    affil: 2    
+  - name: Patrick Lombard
+    affil: 1
+  - name: Ang C. Davies 
+    affil: 3
+  - name: Helena Ahlfors
+    affil: 1    
+  - name: Lucy Jenkins
+    affil: 1    
+affiliation:
+  - num: 1
+    address: North East Thames Regional Genetics Service, London, United Kingdom
+  - num: 2
+    address: Sheffield Diagnostic Genetics Service, Sheffield, United Kingdom
+  - num: 3
+    address: The University of Manchester, Manchester, United Kingdom
+#STYLE & FORMATTING
+title_textsize: "125pt"
+author_textsize: "1.17em"
+authorextra_textsize: "35px"
+affiliation_textsize: "25px"
+affiliation_textcol: "#00000060"
+caption_fontsize: "20pt"
+#Findings Section "Middle" of the poster
+middle_fontfamily: "Helvetica"
+middle_textcol: "#FFFFFF90"
+middle_fontsize: "170px"
+main_findings:
+  - "A combination **panelcn.MOPS** and **SavvyCNV** detects the most true postive CNVs"
+  - "**Sharing software instead of data** should be used within a clinical setting to aid collaboration"
+logoleft_name: "Figures/qr-code-black.png"
+logoright_name: "Figures/posterdownlogo.png"
+#---POSTER BODY OPTIONS---#
+primary_colour: '#0b4545'
+secondary_colour: '#008080' 
+accent_colour: "#cc0000"
+body_bgcol: "#FFFFFF"
+body_textsize: "45px"
+body_textcol: "#000000"
+#--Standard Options--#
+output: 
+  posterdown::posterdown_betterland:
+    self_contained: false
+    pandoc_args: --mathjax
+    highlight: espresso
+    number_sections: false
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  results = "asis",
+  echo = FALSE,
+  warning = FALSE,
+  tidy = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+options(knitr.table.format = "html", knitr.kable.NA = '-')
+
+
+library(here)
+library(readr)
+library(dplyr)
+library(kableExtra)
+library(knitr)
+library(ggplot2)
+
+
+caller_stats <- read_csv(here::here("../../output/plots_tables/poster_stats.csv"))
+callers_lit <- read_csv(here::here("../../output/plots_tables/poster_callers-lit.csv"))
+callers_chosen <- read_csv(here::here("../../output/plots_tables/poster_callers-chosen.csv"))
+
+```
+
+# Introduction
+
+- Copy Number Variants (CNVs) are clinically important but gold standard methods (MLPA and ddPCR) are not scalable to a genomics approach
+- NHS laboratories routinely use targeted-capture next generation sequencing (NGS) and some use whole clinical exome for single nucleotide variants
+- CNVs can be detected from NGS data, but the methods vary in their normalisation, CNV-calling and types of reads used
+- Each laboratory has few known positive CNVs and no high breadth and high quality comparison of CNV callers at the exon level exists
+- We have created `cnv-patissier` to automate a CNV-bake off, allowing multiple NHS sites to run the same comparison using their local data. 
+
+
+```{r, fig.align='center', out.width='90%'}
+kable(callers_chosen, caption = "CNV callers published between 2012-2018.", align = "c",escape = FALSE) %>%
+  kable_styling(full_width = T, font_size = 16, bootstrap_options = c("striped", "condensed")) %>%
+  row_spec(0, color = "#fff", background = "#0b454580")
+?kable
+```
+
+
+# Methods
+
+
+# Results
+
+```{r, out.width='90%', fig.height=5.5, fig.cap='Known positives and negatives per gene'}
+knitr::include_graphics(here::here("../../output/plots_tables/", "samples_per_gene.png"))
+```
+
+
+```{r, out.width='90%', fig.height=5.5, fig.cap='Sensitivity and specificity of callers'}
+
+caller_stats %>%
+  filter(type %in% c("Sensitivity", "Specificity")) %>%
+  ggplot(aes(x=caller, colour=caller)) +
+  geom_errorbar(aes(ymin=conf.low, ymax=conf.high)) +
+  geom_point(aes(y=estimate)) +
+  facet_wrap(~type) +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  ggsci::scale_colour_jco() +
+  labs(x = "CNV Caller",
+       y = "Value") +
+  guides(colour=FALSE)
+
+```
+
+
+```{r, out.width='90%', fig.height=5.5, fig.cap='True positives from top 4 callers'}
+knitr::include_graphics(here::here("../../output/plots_tables/", "top_callers_true_pos.png"))
+```
+
+```{r, out.width='90%', fig.height=5.5, fig.cap='False positives from top 4 callers'}
+knitr::include_graphics(here::here("../../output/plots_tables/", "top_callers_false_pos.png"))
+```
+
+
+# Conclusions
+
+# Extra figures
+
+
+
+
+```{r, fig.align='center', out.width='90%'}
+
+kable(callers_lit, caption = "CNV callers published between 2012-2018.", align = "c") %>%
+  kable_styling(full_width = T, font_size = 16, bootstrap_options = c("striped", "condensed")) %>%
+  row_spec(0, color = "#fff", background = "#0b454580")
+
+```
+
+
+```{r, out.width='90%', fig.height=5.5, fig.cap='Assocication for Clinical Genetics Bioinformatics group votes for CDNV callers of interest'}
+knitr::include_graphics(here::here("../../output/plots_tables/", "cnv_votes.png"))
+```
+
+

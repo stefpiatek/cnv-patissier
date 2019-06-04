@@ -1,0 +1,13 @@
+Caller,Base docker image and tag,Tool version,Supporting tools (version),Docker image used and tag
+Canvas,mono:5.14,1.11.0,Python (3.7.2),stefpiatek/canvas:1.11.0
+CNV kit,ubuntu:18.04,0.9.6,Python (2.7.15rc) <br> R (3.4.4),etal/cnvkit:0.9.6
+CODEX2,r-base:3.5.1,26e796c,R (3.5.1) <br> CODEX (bioconductor 3.8) <br> BSgenome (bioconductor 3.8),stefpiatek/codex2: 26e796c
+CopywriteR,r-base:3.5.1,2.14.1, ,stefpiatek/copywriter:2.14.1
+DECoN ,r-base:3.1.2,1.0.2,R (3.1.2),stefpiatek/decon:1.0.2
+EXCAVATOR2,r-base:3.5.1,1.1.2,Bedtools (2.26.0) <br> Samtools (1.9),stefpiatek/excavator2:1.1.2
+ExomeDepth,r-base:3.5.1,1.1.10,R (3.5.1),stefpiatek/exomedepth:1.1.10
+GATK gCNV,broadinstitute/gatk:gatkbase-2.0.3,4.1.0.0,openJDK (1.8.0_191) <br>Python (3.6.2),broadinstitute/gatk:4.1.0.0
+panelcn.MOPS,r-base:3.5.1,1.4.0,R (3.5.1),stefpiatek/panelcn_mops:1.4.0
+SavvyCNV,java:8-jdk,f996a83,openJDK (1.8.0_111)<br>GATK 3.8.1.0,stefpiatek/savvycnv:f996a83
+WISExome,continuumio/miniconda:4.5.4,-,Python (2.7.15 Anaconda),stefpiatek/wiseexome:latest
+XHMM,broadinstitute/gatk3:3.8-1,1,GATK 3.8.1.0<br>plinkseq (0.10),stefpiatek/xhmm:1.0
