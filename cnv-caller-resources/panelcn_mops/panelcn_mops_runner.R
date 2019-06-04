@@ -28,6 +28,16 @@ detect_cnvs <- function(sample_number) {
   cnv_results <- raw_results[[1]] %>%
     filter(CN != "CN2") %>%
     mutate(Sample = unknown_samples$sample_name[sample_number]) %>%
+    group_by(Sample, Chr, Gene, CN) %>%
+    summarise(Exon = paste(min(as.character(Exon)), max(as.character(Exon))),
+              Start = min(Start, End),
+              End = max(Start, End),
+              RC = mean(RC),
+              medRC = mean(medRC),
+              `RC.norm` = mean(`RC.norm`),
+              `medRC.norm`  = mean(`medRC.norm`),
+              lowQual = min(as.character(lowQual))
+              ) %>%
     return()
 }
 
@@ -56,7 +66,8 @@ normals <- countBamListInGRanges(countWindows = count_windows, bam.files = norma
 unknowns <- countBamListInGRanges(countWindows = count_windows, bam.files = unknown_samples$bam_path, read.width = 150)
 
 # Run CNV calling
-called_cnvs <- map_dfr(.x = seq(1, nrow(unknown_samples)), .f = detect_cnvs)
+called_cnvs <- map_dfr(.x = seq(1, nrow(unknown_samples)), .f = detect_cnvs) %>%
+  filter(!is.na(Sample))
 
 # Save results
 write.table(called_cnvs, file = file.path(opt$output_path, "calls.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
