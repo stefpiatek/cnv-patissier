@@ -4,7 +4,6 @@ Base class for running of a CNV tool - each tool inherits from this class
 
 import csv
 import datetime
-import glob
 import json
 import os
 import pathlib
@@ -35,10 +34,16 @@ logger.add(f"{cnv_pat_dir}/logs/error.log", level="ERROR", mode="w")
 
 
 class BaseCNVTool:
+    """
+    Base Class for every CNV caller to inherit from.
+
+    .main method will cause the subclass to run fully
+    """
     def __init__(self, capture, gene, start_time, normal_panel=True):
         self.session = DbSession.factory()
         self.start_time = start_time
         self.capture = capture
+        # to be overwritten, any extra fields will be added to a json representation in the database just in case
         self.extra_db_fields = []
         self.gene = gene
         self.script_dirs = [f"{cnv_pat_dir}/{folder}" for folder in ["scripts", "cnv-caller-resources"]]
@@ -49,22 +54,30 @@ class BaseCNVTool:
             # will not be done during pytest running of tests
             self.max_cpu = cnv_pat_settings["max_cpu"]
             self.max_mem = cnv_pat_settings["max_mem"]
+
+            # Get paths for different variables
             self.sample_sheet = f"{cnv_pat_dir}/input/{capture}/sample-sheets/{gene}.txt"
             self.output_base, self.docker_output_base = self.base_output_dirs()
 
+            # Get ids and paths for samples split by those as reference (normal) and to be tested (unknown)
             normal_sample_ids, normal_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=True)
             unknown_sample_ids, unknown_bams = utils.SampleUtils.select_samples(self.sample_sheet, normal_panel=False)
             self.bam_mount = utils.SampleUtils.get_mount_point(unknown_bams + normal_bams)
             normal_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in normal_bams]
             unknown_docker_bams = [f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}" for bam in unknown_bams]
 
+            # This dictionary is useful when you only have the bam file, but want the id
             bam_to_sample = utils.SampleUtils.get_bam_to_id(self.sample_sheet)
             self.bam_to_sample = {
                 f"/mnt/bam-input/{bam.split(self.bam_mount)[-1]}": sample_id
                 for (bam, sample_id) in bam_to_sample.items()
             }
+
+            # this dictionary is useful when you have the sample id, but want the bam file
             self.sample_to_bam = {sample_id: bam for (bam, sample_id) in self.bam_to_sample.items()}
 
+            # save settings, these will be recorded in the successful-run-settings.toml for each run
+            # if any of the values in the settings dict change, the run will start again and override the previous one
             self.settings = {
                 "normal_bams": normal_docker_bams,
                 "ref_fasta": f"/mnt/ref_genome/{cnv_pat_settings['genome_fasta_path'].split('/')[-1]}",
@@ -103,6 +116,10 @@ class BaseCNVTool:
                     )
 
     def delete_unused_runs(self):
+        """
+        Delete runs using docker so that the rooy created (ugh docker for GATK forces you to be root)
+        directories are deleted
+        """
         logger.info(f"Removing any old or unsuccessful runs for {self.capture}, {self.run_type}, {self.gene}")
         subprocess.run(
             [
@@ -192,7 +209,9 @@ class BaseCNVTool:
         return duration
 
     def parse_output_file(file_path, sample_id=None):
-        """Dummy method to be overwritten by each CNV-caller class"""
+        """Dummy method to be overwritten by each CNV-caller class
+        This will parse the output data into a common format, with the extra_db_fields still in
+        """
         pass
 
     @staticmethod
@@ -462,16 +481,25 @@ class BaseCNVTool:
 
     @logger.catch(reraise=True)
     def main(self):
+        """
+        Looks for a run settings file, if it doesn't exist or has different values to the current settings - run
+        otherwise skip this caller for this capture and gene.
+
+        Run the workflows and then write to database, finally writting settings toml file so you know that
+        everything has actually completed properly.
+=        """
         previous_run_settings_path = (
             f"{cnv_pat_dir}/successful-run-settings/{self.capture}/{self.run_type}/{self.gene}.toml"
         )
         if self.run_required(previous_run_settings_path):
+            # cohort is specifically for the normal panel running
             if self.run_type.endswith("cohort"):
                 self.bam_headers = self.prerun_steps(self.sample_sheet, cnv_pat_settings["genome_fasta_path"])
                 self.settings["start_datetime"] = datetime.datetime.now()
                 self.run_workflow()
                 self.settings["end_datetime"] = datetime.datetime.now()
             else:
+                # if output will be the final run for this caller, then record the results into the database
                 self.bam_headers = self.prerun_steps(self.sample_sheet, cnv_pat_settings["genome_fasta_path"])
                 self.settings["start_datetime"] = datetime.datetime.now()
                 output_paths, sample_ids = self.run_workflow()

@@ -9,6 +9,9 @@ from . import utils, base_classes
 
 
 class DECoN(base_classes.BaseCNVTool):
+    """
+    DECoN class, main in BaseCNVTool will cause self.run_workflow() to be triggered.
+    """
     def __init__(self, capture, gene, start_time, normal_panel=True):
         self.run_type = "decon"
         super().__init__(capture, gene, start_time, normal_panel=normal_panel)
@@ -61,6 +64,11 @@ class DECoN(base_classes.BaseCNVTool):
         base_classes.logger.info(f"Completed  {self.run_type}: {args[0]} {args[-1]}")
 
     def run_workflow(self):
+        """
+        Will run entire workflow and return the final output data paths, and the sample names analysed
+        :return: (output_paths, sample_names)
+
+        """
         pathlib.Path(self.output_base).mkdir(parents=True, exist_ok=True)
 
         with open(f"{self.output_base}/bams.txt", "w") as handle:

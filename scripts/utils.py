@@ -48,8 +48,11 @@ class SampleUtils:
         return {path: sample_id for (path, sample_id) in zip(paths, sample_ids)}
 
     @classmethod
-    def select_samples(cls, sample_sheet, normal_panel):
-        """returns (sample_ids, sample_paths) from a gene's sample sheet"""
+    def select_samples(cls, sample_sheet: str, normal_panel: bool) -> (str, str):
+        """
+        Filters sample sheet ids and paths by normal_panel status
+        returns (sample_ids, sample_paths) from a gene's sample sheet
+        """
         if normal_panel:
             cnv_statuses = ["normal-panel"]
         else:

@@ -5,13 +5,10 @@ https://cnvkit.readthedocs.io/en/stable/germline.html
 
 """
 import csv
-import subprocess
 import os
 import pathlib
 
-import toml
-
-from . import utils, base_classes
+from . import base_classes
 
 
 class CNVKit(base_classes.BaseCNVTool):
