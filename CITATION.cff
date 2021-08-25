@@ -1,1 +1,19 @@
-
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Piatek"
+    given-names: "Stefan G"
+    orcid: https://orcid.org/0000-0002-3028-5292
+  - family-names: "Lombard"
+    given-names: "Patrick"
+  - family-names: "Davies"
+    given-names: "Angela C"
+  - family-names: "Ahlfors"
+    given-names: "Helena"
+  - family-names: "Jenkins"
+    given-names: "Lucy"
+title: "CNV-Patissier"
+version: 1.2.0
+doi: 10.5281/zenodo.5257542
+date-released: 2021-08-25
+url: "https://github.com/stefpiatek/cnv-patissier/"
